@@ -1,0 +1,6 @@
+# Generated/large artifacts — regenerable, kept out of the repo
+research/cache/
+research/results/
+data/funding/
+__pycache__/
+*.pyc
