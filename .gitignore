@@ -4,3 +4,8 @@ research/results/
 data/funding/
 __pycache__/
 *.pyc
+
+# Bot secrets & runtime state — NEVER commit
+bot/.env
+bot/state.json
+bot/*.tmp
