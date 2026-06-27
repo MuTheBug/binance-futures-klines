@@ -75,6 +75,19 @@ class BinanceFutures:
         return self._request("GET", "/fapi/v1/klines",
                              {"symbol": symbol, "interval": interval, "limit": limit})
 
+    def top_long_short_position_ratio(self, symbol, period="1d", limit=30):
+        """Top-trader long/short POSITION ratio (Sleeve C input). The /futures/data/*
+        endpoints live on MAINNET only, so always read them from mainnet (public data),
+        even when trading on testnet. Returns [(ms, ratio), ...] or [] if unavailable."""
+        try:
+            r = self.s.get(MAINNET + "/futures/data/topLongShortPositionRatio",
+                           params={"symbol": symbol, "period": period, "limit": limit}, timeout=20)
+            if r.status_code != 200:
+                return []
+            return [(int(d["timestamp"]), float(d["longShortRatio"])) for d in r.json()]
+        except (requests.RequestException, ValueError, KeyError):
+            return []
+
     def mark_prices(self):
         """All symbols' mark prices as {symbol: float}."""
         data = self._request("GET", "/fapi/v1/premiumIndex")

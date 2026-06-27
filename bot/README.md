@@ -6,7 +6,11 @@ futures**, rebalancing once daily, with a **Telegram** command/alert interface.
 
 It computes the live signal through the *exact same* validated research code
 (`strategies.py`, `engine.py`, `echo.py`), so what it trades is what was backtested:
-**50% trend (beta) + 50% beta-neutral residual-continuation, vol-targeted, leveraged.**
+**ECHO v2 = 40% trend + 40% beta-neutral residual-continuation + 20% crowd-positioning,
+vol-targeted, leveraged.** The positioning sleeve (Sleeve C) is fetched live from Binance's
+public top-trader long/short ratio (mainnet data, used even on testnet); if that feed is
+unavailable the bot automatically falls back to the 2-sleeve blend. `/status` shows which
+sleeves are active.
 
 ```
 run.py ── bot.py (loop: poll Telegram + daily rebalance + circuit breaker)

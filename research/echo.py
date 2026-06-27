@@ -68,6 +68,36 @@ def _ema_ensemble(weights: pd.DataFrame, spans=(3, 5, 8)) -> pd.DataFrame:
     return sum(weights.ewm(span=s).mean() for s in spans) / len(spans)
 
 
+def positioning_sleeve(close: pd.DataFrame, ret: pd.DataFrame, elig: pd.DataFrame,
+                       ls_ratio: pd.DataFrame, *, fade: bool = True, lag: int = 1,
+                       beta_window: int = 60, cap: float = 0.10,
+                       smooth=(3, 5, 8), gross: float = 1.0) -> pd.DataFrame:
+    """SLEEVE C — crowd-positioning reversal (the validated alt-data edge).
+
+    Input `ls_ratio` = top-trader LONG/SHORT *position* ratio per coin (date x base), from
+    Binance futures metrics. The data verdict (IS+OOS, robust across lags & params): FADE it
+    — when large accounts are maximally crowded long, the move is late and mean-reverts. So
+    short the most-crowded-long names, long the least. Near-orthogonal to trend & residual
+    (corr ~0.1) -> lifts the blend's Sharpe through ~2.0.
+
+    Built like the residual sleeve: tanh-bounded, dollar- & beta-neutral, inverse-vol sized,
+    EMA-smoothed, per-name capped. `lag>=1` ensures yesterday's positioning -> today's book
+    (no look-ahead; results strengthen, not decay, with extra lag).
+    """
+    s = ls_ratio.reindex_like(close).shift(lag).where(elig)
+    z = s.sub(s.mean(axis=1), axis=0).div(s.std(axis=1).replace(0.0, np.nan), axis=0)
+    sig = (-np.tanh(z) if fade else np.tanh(z)).where(elig)
+    sig = sig.sub(sig.mean(axis=1), axis=0).where(elig)               # dollar-neutral
+    rvol = ret.rolling(30, min_periods=15).std().replace(0.0, np.nan)
+    w = (sig * (1.0 / rvol)).where(elig, 0.0)
+    beta = rolling_beta(ret, market_return(ret, elig), beta_window).where(elig, 0.0)
+    num = (w * beta).sum(axis=1); den = (beta * beta).sum(axis=1).replace(0.0, np.nan)
+    w = w.sub(beta.mul(num / den, axis=0), fill_value=0.0).where(elig, 0.0)  # beta-neutral
+    w = _ema_ensemble(w, smooth).clip(-cap, cap)
+    s2 = w.abs().sum(axis=1).replace(0.0, np.nan)
+    return w.div(s2, axis=0).mul(gross).fillna(0.0)
+
+
 def residual_continuation(close: pd.DataFrame, ret: pd.DataFrame, elig: pd.DataFrame, *,
                           beta_window: int = 60, formations=(3, 5, 8), skip: int = 0,
                           smooth_spans=(3, 5, 8), cap: float = 0.10,

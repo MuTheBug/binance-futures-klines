@@ -27,16 +27,23 @@ warnings.filterwarnings("ignore")
 import numpy as np
 import pandas as pd
 import lab, engine, echo, strategies as st
+try:
+    import altdata
+except Exception:
+    altdata = None
 
 RESULTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
 os.makedirs(RESULTS, exist_ok=True)
 
 TARGET_VOL = 0.40          # annualized vol target for the (gross~1) blend
-BLEND = 0.50               # weight on TREND; (1-BLEND) on RESIDUAL-CONTINUATION
+# 2-sleeve weights (no alt-data) and 3-sleeve weights (with positioning alt-data)
+W2 = (0.50, 0.50)                 # (trend, residual)
+W3 = (0.40, 0.40, 0.20)           # (trend, residual, positioning)
 
 
 # ----------------------------- the strategy -----------------------------
 def build_sleeves(close, vol, ret, elig):
+    """Return (wA, wB, wC). wC (crowd-positioning) is None unless alt-data is present."""
     # SLEEVE A: trend (flagship: risk-adjusted strength, EMA-ensemble, top-10 concentrated)
     sigT = st.strength_signal(close, lookbacks=(15, 30, 60, 90), strength_vol=30, k=2.0)
     wA = st.signal_to_weights(sigT, ret, elig, vol_lookback=15)
@@ -45,7 +52,20 @@ def build_sleeves(close, vol, ret, elig):
     # SLEEVE B: beta-neutral idiosyncratic continuation (multi-F ensemble)
     wB = echo.residual_continuation(close, ret, elig, beta_window=60,
                                     formations=(3, 5, 8), cap=0.10)
-    return wA, wB
+    # SLEEVE C: crowd-positioning reversal (validated alt-data edge), if data present
+    wC = None
+    if altdata is not None and altdata.have_metrics():
+        ls = altdata.load_metric("toptrader_pos_ls", reindex_like=close)
+        if ls is not None and ls.notna().sum().sum() > 1000:
+            wC = echo.positioning_sleeve(close, ret, elig, ls, fade=True, lag=1,
+                                         beta_window=60, cap=0.10)
+    return wA, wB, wC
+
+
+def blend_weights(wA, wB, wC):
+    if wC is not None:
+        return W3[0] * wA + W3[1] * wB + W3[2] * wC
+    return W2[0] * wA + W2[1] * wB
 
 
 def vt_net(weights, ret, cost_per_side=engine.COST_PER_SIDE):
@@ -94,10 +114,10 @@ def main():
           f"({close.index[0].date()}..{close.index[-1].date()})  "
           f"elig median/day={int(elig.sum(1).median())}\n")
 
-    wA, wB = build_sleeves(close, vol, ret, elig)
+    wA, wB, wC = build_sleeves(close, vol, ret, elig)
     netA = vt_net(wA, ret)["net"]
     netB = vt_net(wB, ret)["net"]
-    blend = BLEND * wA + (1 - BLEND) * wB
+    blend = blend_weights(wA, wB, wC)
     simX = vt_net(blend, ret)
     netX = simX["net"]
 
@@ -106,10 +126,17 @@ def main():
     print("=" * 96)
     line("A  TREND (ride the tide)", netA)
     line("B  RESID-CONTINUATION (ride the wake)", netB)
+    if wC is not None:
+        line("C  CROWD-POSITIONING (fade the herd)", vt_net(wC, ret)["net"])
     c = pd.concat([netA, netB], axis=1).dropna()
     print(f"\n   corr(A,B) = {c.iloc[:,0].corr(c.iloc[:,1]):+.3f}   <- near-orthogonal => diversification\n")
     print("=" * 96)
-    print(f"THE ECHO ENGINE  =  {int(BLEND*100)}% TREND  +  {int((1-BLEND)*100)}% RESID-CONTINUATION")
+    if wC is not None:
+        print(f"THE ECHO ENGINE v2 = {int(W3[0]*100)}% TREND + {int(W3[1]*100)}% RESIDUAL "
+              f"+ {int(W3[2]*100)}% POSITIONING (alt-data)")
+    else:
+        print(f"THE ECHO ENGINE = {int(W2[0]*100)}% TREND + {int(W2[1]*100)}% RESIDUAL "
+              f"(no alt-data; run altdata/ to add Sleeve C)")
     print("=" * 96)
     mi, mo = line("ECHO ENGINE", netX)
 

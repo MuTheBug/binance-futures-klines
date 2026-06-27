@@ -7,14 +7,25 @@ from __future__ import annotations
 import warnings; warnings.filterwarnings("ignore")
 import numpy as np, pandas as pd
 import lab, engine, echo, strategies as st
+try:
+    import altdata
+except Exception:
+    altdata = None
 
 IS_END = lab.IS_END
 
 
 def build_blend(close, vol, ret, elig, blend=0.5):
+    """ECHO blend; uses the 3-sleeve (A/B/C 40/40/20) when positioning alt-data is present,
+    else the 2-sleeve (A/B 50/50)."""
     sigT = st.strength_signal(close, lookbacks=(15, 30, 60, 90), strength_vol=30, k=2.0)
     wA = st.concentrate(st.ema_ensemble(st.signal_to_weights(sigT, ret, elig, 15), (5, 10, 15)), 10)
     wB = echo.residual_continuation(close, ret, elig, beta_window=60, formations=(3, 5, 8), cap=0.10)
+    if altdata is not None and altdata.have_metrics():
+        ls = altdata.load_metric("toptrader_pos_ls", reindex_like=close)
+        if ls is not None and ls.notna().sum().sum() > 1000:
+            wC = echo.positioning_sleeve(close, ret, elig, ls, fade=True, lag=1, beta_window=60, cap=0.10)
+            return 0.40 * wA + 0.40 * wB + 0.20 * wC
     return blend * wA + (1 - blend) * wB
 
 

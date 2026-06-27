@@ -82,6 +82,8 @@ class FakeExchange:
             out[base + "USDT"] = {"step": 0.001, "minQty": 0.0, "tick": 0.0,
                                   "minNotional": 5.0, "base": base}
         return out
+    def top_long_short_position_ratio(self, symbol, period="1d", limit=30):
+        return []          # offline: no positioning -> bot falls back to 2-sleeve blend
     def klines(self, symbol, interval="1d", limit=300):
         base = symbol[:-4]
         f = os.path.join(self.root, f"{base}_USDT_1d.csv")

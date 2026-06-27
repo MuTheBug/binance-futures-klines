@@ -60,6 +60,25 @@ def fetch_universe_klines(client, cfg, log=print):
     return close, vol, base_to_symbol
 
 
+def _fetch_positioning(client, base_to_symbol, close, log=print):
+    """Build a (day x base) top-trader long/short POSITION ratio matrix aligned to `close`.
+    Returns None if the endpoint yields nothing (e.g. blocked/unavailable)."""
+    cols, n_ok = {}, 0
+    for base, sym in base_to_symbol.items():
+        if base not in close.columns:
+            continue
+        rows = client.top_long_short_position_ratio(sym, period="1d", limit=30)
+        if rows:
+            idx = pd.to_datetime([r[0] for r in rows], unit="ms", utc=True).floor("D")
+            cols[base] = pd.Series([r[1] for r in rows], index=idx)
+            n_ok += 1
+    if n_ok == 0:
+        return None
+    ls = pd.DataFrame(cols).sort_index()
+    log(f"  positioning: {n_ok} symbols")
+    return ls.reindex(close.index).reindex(columns=close.columns)
+
+
 def compute_targets(client, cfg, log=print):
     """Compute current target weights. Returns (targets, info).
     targets : {binance_symbol: weight}  (weight = signed fraction of equity)
@@ -78,7 +97,17 @@ def compute_targets(client, cfg, log=print):
     wA = st.concentrate(st.ema_ensemble(st.signal_to_weights(sigT, ret, elig, 15), (5, 10, 15)), 10)
     wB = echo.residual_continuation(close, ret, elig, beta_window=60, formations=(3, 5, 8), cap=0.10)
 
-    blend = cfg.blend_trend * wA + (1 - cfg.blend_trend) * wB
+    # SLEEVE C — crowd-positioning reversal (validated alt-data edge), if live data available
+    ls = _fetch_positioning(client, base_to_symbol, close, log)
+    wC, used_C = None, False
+    if ls is not None and ls.notna().sum().sum() > 200:
+        wC = echo.positioning_sleeve(close, ret, elig, ls, fade=True, lag=1, beta_window=60, cap=0.10)
+
+    if wC is not None:                       # 3-sleeve blend (40/40/20)
+        blend = 0.40 * wA + 0.40 * wB + 0.20 * wC
+        used_C = True
+    else:                                    # fall back to 2-sleeve (e.g. positioning unavailable)
+        blend = cfg.blend_trend * wA + (1 - cfg.blend_trend) * wB
     wv = engine.vol_target(blend, ret, "1d", target_vol=cfg.target_vol, max_leverage=3.0)
 
     last = wv.iloc[-1].dropna()
@@ -103,5 +132,6 @@ def compute_targets(client, cfg, log=print):
         "net": round(float(last.sum()), 3),
         "n_long": int((last > 0).sum()),
         "n_short": int((last < 0).sum()),
+        "sleeves": "A+B+C" if used_C else "A+B",
     }
     return targets, info

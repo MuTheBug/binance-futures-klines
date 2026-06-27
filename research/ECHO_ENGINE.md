@@ -49,22 +49,42 @@ anomalies (positive IS but **negative OOS** — crushed in the 2025–26 alt ral
 
 ---
 
-## Performance (daily rebalance, 14bps round-trip cost, vol-targeted to 40%/yr, ~1x gross)
+## Sleeve C — crowd-positioning reversal (the alt-data breakthrough → Sharpe 2.0)
 
-| Sleeve / Blend | IS Sharpe | OOS Sharpe | corr→trend |
-|---|---|---|---|
-| A — Trend ("ride the tide") | 1.44 | 1.58 | — |
-| B — Residual continuation ("ride the wake") | 0.70 | 2.75 | **+0.16** |
-| **ECHO = 50% A + 50% B** | **1.55** | **2.77** | — |
+The original research declared a robust **Sharpe 2.0 "NOT reachable" on price+funding data**.
+It needed genuinely orthogonal data — and we found it: Binance's **top-trader long/short
+*position* ratio** (multi-year history from `data.binance.vision`). The data verdict, under
+strict discipline: **FADE the herd** — when large accounts are maximally crowded long, the move
+is late and mean-reverts. Short the most-crowded-long names, long the least; market- and
+beta-neutral, built exactly like Sleeve B.
 
-The blend lifts the **in-sample** Sharpe (1.44 → 1.55) *and* the OOS Sharpe (1.58 → 2.77) and
-**cuts OOS drawdown to −16%** — the diversification benefit is real **in-sample**, which is
-what separates it from regime luck.
+It cleared the hard bar that GLOBAL-retail-ratio and TAKER-flow **failed**: adding C improves
+**both** IS (1.55→1.67) *and* OOS (2.77→**3.12**); it's near-orthogonal (corr ~0.1); robust
+across lags 0/1/2 (OOS 2.96→3.02→**3.08** — *strengthens* with lag, so no look-ahead) and across
+cap/beta-window; and it adds value in late-IS (+0.23) and OOS (+0.35), neutral early, hurts no
+period. (`altdata/` to download; `research/altdata_sleeves.py` is the IS-gated judge.)
 
-**ECHO full-period (2020-05 → 2026-06, ~1x):** CAGR **108%**, Sharpe **1.85**, Sortino 2.96,
-maxDD −35%, Calmar 3.07, win-rate 50.5%, profit-factor **1.33**, **82× equity** in 6y.
-**Positive every single year**, including the 2022 bear (**+37%**, the book goes short):
-`2020:+33% 2021:+199% 2022:+37% 2023:+26% 2024:+124% 2025:+208% 2026:+73%`.
+## Performance — ECHO v2 = 40% Trend + 40% Residual + 20% Positioning
+
+(daily rebalance, 14bps round-trip cost, vol-targeted to 40%/yr, ~1x gross)
+
+| Sleeve / Blend | IS Sharpe | OOS Sharpe |
+|---|---|---|
+| A — Trend ("ride the tide") | 1.44 | 1.58 |
+| B — Residual continuation ("ride the wake") | 0.70 | 2.75 |
+| C — Crowd-positioning ("fade the herd", alt-data) | 1.13 | 0.73 |
+| ECHO v1 = 50% A + 50% B | 1.55 | 2.77 |
+| **ECHO v2 = 40% A + 40% B + 20% C** | **1.67** | **3.12** |
+
+**ECHO v2 full-period (2020-05 → 2026-06, ~1x):** CAGR **120%**, Sharpe **2.00**, Sortino 3.16,
+maxDD −37%, Calmar 3.22, win-rate 50.2%, profit-factor **1.36**, **114× equity** in 6y.
+**Positive every single year**, including the 2022 bear (**+35%**, the book goes short):
+`2020:+37% 2021:+201% 2022:+35% 2023:+57% 2024:+122% 2025:+199% 2026:+98%`.
+(v1, without alt-data, remains the fallback: Sharpe 1.85, CAGR 108%, 82×.)
+
+> Honest caveat: Sleeve C only covers the ~40 symbols with metrics history (from 2021), so it
+> is a 20% overlay, not the core; and OOS is 1.4y. Treat **IS 1.67 / full 2.00** as the figure,
+> with the OOS 3.12 as confirmation, not a forward promise.
 
 > Honest caveat: Sleeve B's *standalone* edge is regime-varying (IS 0.70 ≪ OOS 2.75) — it is
 > strongest when idiosyncratic dispersion is high (2025–26 alt/meme season). Treat **IS 1.55**

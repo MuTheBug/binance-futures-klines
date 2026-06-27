@@ -233,7 +233,7 @@ class EchoBot:
                 f"lev {cfg.leverage:g}x · vol {cfg.target_vol:g} · blend "
                 f"{cfg.blend_trend:g}/{1-cfg.blend_trend:g} · maxPos {cfg.max_positions}\n"
                 f"targets: {self.last_info.get('n_targets','-')} "
-                f"(gross {self.last_info.get('gross','-')}x)\n"
+                f"(gross {self.last_info.get('gross','-')}x, sleeves {self.last_info.get('sleeves','-')})\n"
                 f"next rebalance: {nxt} UTC")
 
     def _risk(self):
