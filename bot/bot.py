@@ -41,6 +41,7 @@ class EchoBot:
         self.last_targets = {}
         self.last_info = {}
         self.log_lines = []
+        self.live_blocked = False        # set if account is in hedge mode (unsafe for this bot)
 
     # ----------------------------- logging -----------------------------
     def log(self, msg):
@@ -70,6 +71,8 @@ class EchoBot:
             return
         self.log(f"=== REBALANCE ({source}) {cfg.summary()} ===")
         self.alert(f"⚙️ Rebalancing ({source}) — {cfg.summary()}")
+        if cfg.api_key:
+            self.ex.sync_time()              # align clock before signed calls
         try:
             targets, info = signals.compute_targets(self.ex, cfg, log=self.log)
         except Exception as e:
@@ -104,6 +107,11 @@ class EchoBot:
             self.state["paused"] = True
             return
 
+        if self.live_blocked and not cfg.dry_run:
+            self.alert("⛔ Account is in HEDGE mode — refusing live orders (this bot needs "
+                       "One-way mode). Switch Position Mode to One-way, then /resume.\n" +
+                       self._fmt_targets(targets, info))
+            return
         orders = trader.reconcile(targets, equity, positions, prices, self.ex, cfg)
         if not orders:
             self.alert(f"✅ Already on target. Equity ${equity:,.2f} DD {pct(dd)}.\n" +
@@ -152,6 +160,8 @@ class EchoBot:
                 self.tg.send(self._positions(), chat_id)
             elif cmd == "pnl":
                 self.tg.send(self._pnl(), chat_id)
+            elif cmd == "report":
+                self.tg.send(self._report(), chat_id)
             elif cmd == "weights":
                 self.tg.send(self._fmt_targets(self.last_targets, self.last_info)
                              if self.last_targets else "no targets computed yet — use /signal", chat_id)
@@ -198,6 +208,7 @@ class EchoBot:
                 "/balance – equity, peak, drawdown\n"
                 "/positions – open positions + uPnL\n"
                 "/pnl – PnL / equity summary\n"
+                "/report – live performance vs backtest\n"
                 "/signal – recompute target weights (no trade)\n"
                 "/weights – last computed targets\n"
                 "/rebalance – force a rebalance now\n"
@@ -216,8 +227,9 @@ class EchoBot:
         flags.append("TESTNET" if cfg.testnet else "MAINNET")
         if self.state["paused"]: flags.append("PAUSED")
         if self.state["stopped_out"]: flags.append("STOPPED-OUT")
+        ddtxt = pct(self.state.drawdown(eq)) if eq > 0 else "n/a"
         return (f"<b>ECHO bot</b> [{' '.join(flags)}]\n"
-                f"equity: ${eq:,.2f}  DD: {pct(self.state.drawdown(eq))}\n"
+                f"equity: ${eq:,.2f}  DD: {ddtxt}\n"
                 f"lev {cfg.leverage:g}x · vol {cfg.target_vol:g} · blend "
                 f"{cfg.blend_trend:g}/{1-cfg.blend_trend:g} · maxPos {cfg.max_positions}\n"
                 f"targets: {self.last_info.get('n_targets','-')} "
@@ -252,6 +264,43 @@ class EchoBot:
         return (f"<b>PnL</b>\nequity ${eq:,.2f}  peak ${peak:,.2f}\n"
                 f"since start ({hist[0][0][:10] if hist else 'n/a'}): {pct(tot)}\n"
                 f"drawdown: {pct(self.state.drawdown(eq))}  samples: {len(hist)}")
+
+    def _report(self):
+        hist = self.state["equity_history"] or []
+        if len(hist) < 2:
+            return "not enough history yet for a report (need a few days of equity samples)"
+        eq = self.equity() or hist[-1][1]
+        first = hist[0][1]
+        try:
+            t0 = dt.datetime.strptime(hist[0][0], "%Y-%m-%dT%H:%M:%SZ")
+            t1 = dt.datetime.strptime(hist[-1][0], "%Y-%m-%dT%H:%M:%SZ")
+            days = max(1.0, (t1 - t0).total_seconds() / 86400.0)
+        except ValueError:
+            days = float(len(hist))
+        tot = (eq / first - 1.0) if first else 0.0
+        dd = self.state.drawdown(eq)
+        # only annualize once there is a meaningful span (>=14d), else show the daily pace
+        ann_line = ""
+        if days >= 14 and first > 0 and eq > 0:
+            ann = (eq / first) ** (365.0 / days) - 1.0
+            ann_line = f"  ann.pace {pct(ann)}"
+        return (f"<b>live report</b> ({days:.0f}d)\n"
+                f"equity ${eq:,.2f} (start ${first:,.2f})  since {hist[0][0][:10]}\n"
+                f"total {pct(tot)}{ann_line}  drawdown {pct(dd)}\n"
+                f"<i>backtest ref @2x: median ~+7.5%/mo, expect −40/−50% DD en route. "
+                f"Live below backtest is normal.</i>")
+
+    def _maybe_summary(self):
+        cfg = self.cfg
+        now = _utcnow()
+        today = now.strftime("%Y-%m-%d")
+        if now.hour < cfg.summary_utc_hour or self.state["last_summary_date"] == today:
+            return
+        self.state["last_summary_date"] = today
+        try:
+            self.alert("📅 Daily check-in\n" + self._status() + "\n" + self._positions())
+        except Exception as e:
+            self.log(f"summary error: {e}")
 
     # ----------------------------- scheduling / loop -----------------------------
     def _days_since_last(self, now):
@@ -288,15 +337,25 @@ class EchoBot:
     def tick(self):
         if not self.state["paused"] and not self.state["stopped_out"] and self._due():
             self.do_rebalance(source="schedule")
+        self._maybe_summary()
 
     def run(self):
         cfg = self.cfg
         try:
-            self.ex.ping()
-            conn = "ok"
+            self.ex.ping(); self.ex.sync_time()
+            conn = f"ok (clock offset {self.ex.time_offset}ms)"
         except Exception as e:
             conn = f"FAILED ({e})"
-        self.alert(f"🟢 ECHO bot online — {cfg.summary()} | binance ping: {conn}\n"
+        warn = ""
+        if cfg.api_key:
+            try:
+                if self.ex.hedge_mode():
+                    self.live_blocked = True
+                    warn = "\n⛔ Account is in HEDGE mode — live orders blocked. Switch Binance " \
+                           "Position Mode to One-way to trade."
+            except Exception as e:
+                warn = f"\n⚠️ could not verify position mode: {e}"
+        self.alert(f"🟢 ECHO bot online — {cfg.summary()} | binance ping: {conn}{warn}\n"
                    f"send /help for commands")
         self.log("entering main loop")
         while True:

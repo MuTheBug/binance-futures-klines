@@ -45,11 +45,14 @@ def reconcile(targets, equity, positions, prices, client, cfg):
 
         is_close = (w == 0.0 and cur != 0.0)
         is_new = (cur == 0.0)
+        # effective dust floor = max(config min, the symbol's exchange minNotional)
+        sym_min = client._filters.get(sym, {}).get("minNotional", 0.0) if hasattr(client, "_filters") else 0.0
+        floor = max(cfg.min_order_usdt, sym_min)
         # no-churn band: hold if the position barely moved (but always act on closes/new)
         if not is_close and not is_new:
-            if abs(delta_notional) < max(cfg.min_order_usdt, cfg.rebalance_band * abs(tgt_notional)):
+            if abs(delta_notional) < max(floor, cfg.rebalance_band * abs(tgt_notional)):
                 continue
-        elif abs(delta_notional) < cfg.min_order_usdt and not is_close:
+        elif abs(delta_notional) < floor and not is_close:
             continue
 
         qty = client.round_qty(sym, abs(delta_qty))

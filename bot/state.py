@@ -15,6 +15,7 @@ class State:
             "equity_history": [],          # [[iso_ts, equity], ...]
             "tg_offset": None,
             "stopped_out": False,          # circuit breaker latched
+            "last_summary_date": None,     # last daily check-in alert
         }
         self.load()
 

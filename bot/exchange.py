@@ -31,17 +31,27 @@ class BinanceFutures:
         self.base = TESTNET if testnet else MAINNET
         self.recv_window = recv_window
         self.dry_run = dry_run
+        self.time_offset = 0          # serverTime - localTime (ms), set by sync_time()
         self.s = requests.Session()
         if api_key:
             self.s.headers.update({"X-MBX-APIKEY": api_key})
         self._filters = {}    # symbol -> filter dict (lazy)
 
     # ----------------------------- low-level -----------------------------
+    def sync_time(self):
+        """Align local clock to Binance server time (avoids -1021 timestamp errors)."""
+        try:
+            srv = self._request("GET", "/fapi/v1/time")["serverTime"]
+            self.time_offset = int(srv) - int(time.time() * 1000)
+        except Exception:
+            self.time_offset = 0
+        return self.time_offset
+
     def _request(self, method, path, params=None, signed=False):
         params = dict(params or {})
         url = self.base + path
         if signed:
-            params["timestamp"] = int(time.time() * 1000)
+            params["timestamp"] = int(time.time() * 1000) + self.time_offset
             params["recvWindow"] = self.recv_window
             query = urllib.parse.urlencode(params, doseq=True)
             sig = hmac.new(self.secret, query.encode(), hashlib.sha256).hexdigest()
@@ -77,6 +87,13 @@ class BinanceFutures:
     # ----------------------------- private -----------------------------
     def account(self):
         return self._request("GET", "/fapi/v2/account", signed=True)
+
+    def hedge_mode(self):
+        """True if account is in Hedge (dual-side) mode. This bot assumes ONE-WAY mode;
+        hedge mode would make the one-way order logic incorrect, so the bot refuses to
+        trade live until it's switched off (Binance app: Settings > Position Mode > One-way)."""
+        return bool(self._request("GET", "/fapi/v1/positionSide/dual", signed=True)
+                    .get("dualSidePosition", False))
 
     def balance_usdt(self):
         """Total wallet equity in USDT (walletBalance + unrealized PnL)."""

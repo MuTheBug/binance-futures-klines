@@ -49,6 +49,7 @@ python3 run.py                # start the autonomous bot
 | `/balance` | equity, peak, drawdown |
 | `/positions` | open positions + unrealized PnL |
 | `/pnl` | PnL / equity summary since start |
+| `/report` | live performance (total, ann. pace, DD) vs backtest reference |
 | `/signal` | recompute target weights now (no trading) |
 | `/weights` | last computed targets |
 | `/rebalance` | force a rebalance immediately |
@@ -89,7 +90,11 @@ State (`state.json`) and `.env` persist across restarts; Telegram offset is save
 aren't reprocessed. `state.json` and `.env` are git-ignored.
 
 ## Notes & limits
-- One-way position mode assumed (Binance default). Hedge mode is not used.
+- **One-way position mode required** (Binance default). On startup the bot checks your
+  account; if it's in **Hedge mode** it **blocks live orders** and tells you to switch to
+  One-way (Binance app → Settings → Position Mode). It also syncs to Binance server time on
+  startup and before each rebalance (avoids timestamp errors), and sends a **daily check-in**
+  alert at `SUMMARY_UTC_HOUR`.
 - Market orders only (the strategy is daily; majors are liquid). For thin alts, consider
   lowering `MAX_POSITIONS` / raising `MIN_DOLLAR_VOL`.
 - Funding costs are real on perps; the backtest models them but live funding varies.
