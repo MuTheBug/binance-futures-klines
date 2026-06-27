@@ -254,13 +254,27 @@ class EchoBot:
                 f"drawdown: {pct(self.state.drawdown(eq))}  samples: {len(hist)}")
 
     # ----------------------------- scheduling / loop -----------------------------
+    def _days_since_last(self, now):
+        last = self.state["last_rebalance_date"]
+        if not last:
+            return 10 ** 6
+        try:
+            d = dt.datetime.strptime(last, "%Y-%m-%d").replace(tzinfo=dt.timezone.utc)
+        except ValueError:
+            return 10 ** 6
+        return (now.date() - d.date()).days
+
     def _next_rebalance(self):
         now = _utcnow()
         run = now.replace(hour=self.cfg.rebalance_utc_hour, minute=self.cfg.rebalance_utc_minute,
                           second=0, microsecond=0)
-        today = now.strftime("%Y-%m-%d")
-        # today's slot is still ahead and we haven't run today -> today; otherwise tomorrow
-        nxt = run if (now < run and self.state["last_rebalance_date"] != today) else run + dt.timedelta(days=1)
+        every = self.cfg.rebalance_every_days
+        # slot today still ahead and cadence satisfied -> today; else next eligible day
+        if now < run and self._days_since_last(now) >= every:
+            nxt = run
+        else:
+            wait = max(1, every - self._days_since_last(now)) if now >= run else 1
+            nxt = run + dt.timedelta(days=wait)
         return nxt.strftime("%Y-%m-%d %H:%M")
 
     def _due(self):
@@ -268,7 +282,8 @@ class EchoBot:
         run = now.replace(hour=self.cfg.rebalance_utc_hour, minute=self.cfg.rebalance_utc_minute,
                           second=0, microsecond=0)
         today = now.strftime("%Y-%m-%d")
-        return now >= run and self.state["last_rebalance_date"] != today
+        return (now >= run and self.state["last_rebalance_date"] != today
+                and self._days_since_last(now) >= self.cfg.rebalance_every_days)
 
     def tick(self):
         if not self.state["paused"] and not self.state["stopped_out"] and self._due():

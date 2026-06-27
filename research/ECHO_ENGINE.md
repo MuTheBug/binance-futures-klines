@@ -101,11 +101,34 @@ Beyond 3× the account is destroyed by vol drag + liquidation — do **not** cha
 
 ---
 
+## Stress tests (`stress.py`) — trying hard to break it
+- **Crisis-resilient / crisis-alpha:** positive in 5 of 6 named crashes (LUNA/UST **+23%**,
+  3AC dele­verage +8%, FTX +4%, Aug-2024 carry-unwind +9%, Feb-2025 −selloff +5%) because the
+  book goes short; only the fast May-2021 V-flush hurt (−16% at 1×).
+- **Execution-robust:** unchanged with +1 day execution lag; still 1.43 IS at +2 days; survives
+  the combined worst case **30bps/side + 1-day lag + 30%/yr funding** (IS 1.05 / OOS 2.14).
+- **Breadth, not a few names:** excluding **BTC+ETH** barely dents it (CAGR 98%); but it *needs*
+  breadth — restricting to the top-20 coins collapses OOS to 0.27 (so trade the broad universe).
+- **Downtime-proof:** rebalancing every 2–3 days is *slightly better* than daily and cheaper.
+- **Sobering tail:** at 2× the worst 1% of bootstrapped years draws down **−79%**, and the single
+  worst path reached −96% ("no liquidation" in the per-bar model, but that is ruin in practice).
+  → **1.5× (worst-1% DD ≈ −68%) is the wiser leverage; reserve 2× for risk you can stomach.**
+
+## Pushing further (`echo_boost.py`) — the disciplined verdict
+Only one change survived the IS-Sharpe test: **rebalance every 2–3 days** (IS 1.55→1.61, lower
+cost). Risk-parity blending lands back at ~50/50; a 3rd sleeve (xs-momentum, donchian) does **not**
+raise in-sample Sharpe — the two-sleeve blend already captures the orthogonal alpha in this data.
+Beyond that, more PnL comes only from **leverage** (a drawdown trade-off, not new alpha) or from
+**genuinely new data** (on-chain flows, options skew, order-book/liquidation feeds) — not from
+more mining of OHLCV. The honest move is to bank the cadence win and refuse the overfit.
+
 ## Run it
 ```bash
 cd research
 python3 data.py                 # build cached OHLCV matrices (once)
 python3 echo_engine.py          # >>> the definitive report + results/echo_engine.png
+python3 stress.py               # crisis / cost / breadth / downtime / tail stress battery
+python3 echo_boost.py           # disciplined improvement attempts (IS-gated)
 ```
 Code: `echo.py` (sleeves: `residuals`, `residual_continuation`), `echo_engine.py` (blend +
 leverage + bootstrap), reusing `engine.py`, `strategies.py`, `lab.py`, `data.py`.

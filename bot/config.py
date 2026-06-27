@@ -73,8 +73,9 @@ class Config:
     rebalance_band: float = 0.25          # only trade a name if |target-current| > band*|target_step|
 
     # --- Schedule ---
-    rebalance_utc_hour: int = 0           # daily rebalance time (UTC), after the daily close
+    rebalance_utc_hour: int = 0           # rebalance time (UTC), after the daily close
     rebalance_utc_minute: int = 5
+    rebalance_every_days: int = 2         # cadence: 2-3d slightly beats daily (less whipsaw/cost)
     poll_seconds: int = 10                # telegram long-poll / loop tick
 
     # --- Paths ---
@@ -108,6 +109,7 @@ class Config:
             rebalance_band=_f("REBALANCE_BAND", 0.25),
             rebalance_utc_hour=_i("REBALANCE_UTC_HOUR", 0),
             rebalance_utc_minute=_i("REBALANCE_UTC_MINUTE", 5),
+            rebalance_every_days=max(1, _i("REBALANCE_EVERY_DAYS", 2)),
             poll_seconds=_i("POLL_SECONDS", 10),
             research_dir=os.environ.get("RESEARCH_DIR", os.path.join(os.path.dirname(here), "research")),
             state_path=os.environ.get("STATE_PATH", os.path.join(here, "state.json")),
