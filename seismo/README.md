@@ -88,14 +88,23 @@ See `compare_echo.py`, `out/compare_echo_rift.csv`.
 | **50/50 blend** | **3.62** | — | −16% (at ~30% vol) | 1.66 |
 
 Verdict: **ECHO v2 is the better single strategy** on every
-leverage-invariant metric in every common window (full period: Sharpe 1.92
+leverage-invariant metric in every common window (full period: Sharpe ~1.9
 vs 1.69). RIFT's higher headline CAGR is purely its 2x-gross spec, not
-alpha. But the correlation between the two books is **+0.03 — essentially
-zero** — so the dominant portfolio is *both*: the 50/50 vol-weighted blend
-beats either alone (full-period Sharpe 2.51, common-OOS 3.62, and the
-shallowest drawdowns). Caveats: ECHO rebalances daily (~0.33x/day
-turnover vs RIFT's weekly) and its Sleeve C depends on the Binance
-top-trader positioning feed.
+alpha. Caveats: ECHO rebalances daily (~0.33x/day turnover vs RIFT's
+weekly) and its Sleeve C depends on the Binance top-trader positioning
+feed.
+
+> **Correction (important):** an earlier revision of this section reported
+> corr(ECHO, RIFT) = +0.03 and a 50/50 blend Sharpe of 3.62. That number
+> was an artifact: the two engines stamp the same day's PnL on adjacent
+> date labels, and the correlation was computed on misaligned series
+> (equivalent to comparing independent noise). On correctly aligned
+> series the true correlation is **+0.4 to +0.5** — the books share
+> alt-momentum exposure — and the 50/50 blend is at best marginally
+> better than ECHO alone (full-period 2.15 vs 1.93 return-space;
+> equal or slightly worse in the bot's weight-space construction).
+> The bug was caught by `seismo/combined.py`, which backtests the blend
+> in one framework with one label convention.
 
 ### Independent replication (`echo_replica.py`)
 
@@ -117,6 +126,27 @@ stamp the same fill on adjacent labels), and the numbers hold:
 The edge survives an independent implementation with different universe,
 timing and cost choices — it is a property of the strategy, not of their
 backtester.
+
+## The combined live bot (`bot/` + `research/rift.py`)
+
+The ECHO v2 trading bot from branch `...-bim2hm` now trades the **combined
+book**: the ECHO blend and the RIFT sleeve are each vol-targeted to 40%/yr
+on their own trailing net returns, then mixed `BLEND_ECHO / 1-BLEND_ECHO`
+(default **0.80/0.20**). RIFT keeps its weekly cadence inside the daily
+bot loop via a calendar-anchored 7-day refresh (`research/rift.py`) —
+daily refresh was tested and loses ~0.3 Sharpe to turnover.
+
+`seismo/combined.py` backtests the exact bot construction (weight space,
+one engine, 10 bps/side): ECHO-weight 0.8–1.0 is a flat plateau at
+**Sharpe ≈ 1.98 full-period** (blend sweep: 1.0→1.97, 0.9→1.98, 0.8→1.98,
+0.5→1.81), so the 20% RIFT sleeve costs nothing measurable and buys
+diversification against ECHO-specific decay (the SEISMO lesson: single
+anomalies die; corr 0.53 ≠ 1). At the bot's defaults (2x leverage
+multiplier, 3x gross cap, top-30 positions): **full-period CAGR 181%,
+Sharpe 1.80, maxDD −67%**; common-OOS Sharpe 2.69. Bot changes: top-N
+truncation default raised 14→30 (the combined book holds ~27 names;
+truncating to 14 costs ~0.2 Sharpe). Offline selftest passes
+(`cd bot && python3 run.py --selftest`).
 
 ---
 

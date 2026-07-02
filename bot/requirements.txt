@@ -1,0 +1,5 @@
+# ECHO Engine bot — minimal, auditable dependencies
+requests>=2.28
+numpy>=1.23
+pandas>=1.5
+# (the live signal imports the validated research modules: strategies.py, engine.py, echo.py)

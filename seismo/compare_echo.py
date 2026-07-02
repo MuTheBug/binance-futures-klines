@@ -40,7 +40,12 @@ def m(r, label):
 def load_echo(tag):
     s = pd.read_csv(f"seismo/out/echo_v2_net_{tag}.csv", index_col=0)
     s.index = pd.to_datetime(s.index, utc=True)
-    return s.iloc[:, 0]
+    # their engine stamps each day's PnL one label EARLIER than this branch's
+    # convention (verified: corr(mine(t), theirs(t-1)) = +0.95, ~0 at other
+    # offsets); align labels or cross-series correlations/blends are
+    # meaningless -- the original +0.03 "uncorrelated" reading was exactly
+    # this artifact
+    return s.iloc[:, 0].shift(1)
 
 
 def main():
