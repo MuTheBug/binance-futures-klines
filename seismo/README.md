@@ -72,6 +72,32 @@ performance-neutral in *both* windows (IS +1,550%→+1,550%, OOS
 Run: `python3 -m seismo.xsmom` (IS grid) · `python3 -m seismo.final_rift`
 (full evaluation) · `python3 -m seismo.rift_plots` (charts).
 
+## RIFT vs ECHO v2 (branch `...-bim2hm`) — head-to-head
+
+ECHO v2's daily net returns were produced by running that branch's own
+pipeline unchanged (`research/echo_engine.py`; reproduced its published
+IS 1.67 / OOS 3.12 / full 2.00 exactly) and exported at cost parity
+(10 bps/side). Cleanest window is the **common OOS ≥ 2025-01** — beyond
+both branches' tuning fences (RIFT: 2024-07, ECHO: 2024-12).
+See `compare_echo.py`, `out/compare_echo_rift.csv`.
+
+| common OOS ≥2025-01, 10bps/side | Sharpe | CAGR @ equal vol (44%) | max DD @ equal vol | daily PF |
+|---|---|---|---|---|
+| ECHO v2 | **3.02** | **231%** | **−20%** | **1.56** |
+| RIFT | 2.13 | 127% | −32% | 1.36 |
+| **50/50 blend** | **3.62** | — | −16% (at ~30% vol) | 1.66 |
+
+Verdict: **ECHO v2 is the better single strategy** on every
+leverage-invariant metric in every common window (full period: Sharpe 1.92
+vs 1.69). RIFT's higher headline CAGR is purely its 2x-gross spec, not
+alpha. But the correlation between the two books is **+0.03 — essentially
+zero** — so the dominant portfolio is *both*: the 50/50 vol-weighted blend
+beats either alone (full-period Sharpe 2.51, common-OOS 3.62, and the
+shallowest drawdowns). Caveats: ECHO rebalances daily (~0.33x/day
+turnover vs RIFT's weekly) and its Sleeve C depends on the Binance
+top-trader positioning feed; and this comparison reruns ECHO's own code —
+it does not re-audit that branch's methodology from scratch.
+
 ---
 
 # SEISMO — trading liquidation cascades like earthquakes
