@@ -77,7 +77,7 @@ class Config:
     # --- Schedule ---
     rebalance_utc_hour: int = 0           # rebalance time (UTC), after the daily close
     rebalance_utc_minute: int = 5
-    rebalance_every_days: int = 2         # cadence: 2-3d slightly beats daily (less whipsaw/cost)
+    rebalance_every_days: int = 3         # cadence: 3d beats daily, phase-stable (see research/apex.py)
     summary_utc_hour: int = 8             # daily check-in summary alert time (UTC)
     poll_seconds: int = 10                # telegram long-poll / loop tick
 
@@ -113,7 +113,7 @@ class Config:
             rebalance_band=_f("REBALANCE_BAND", 0.25),
             rebalance_utc_hour=_i("REBALANCE_UTC_HOUR", 0),
             rebalance_utc_minute=_i("REBALANCE_UTC_MINUTE", 5),
-            rebalance_every_days=max(1, _i("REBALANCE_EVERY_DAYS", 2)),
+            rebalance_every_days=max(1, _i("REBALANCE_EVERY_DAYS", 3)),
             summary_utc_hour=_i("SUMMARY_UTC_HOUR", 8),
             poll_seconds=_i("POLL_SECONDS", 10),
             research_dir=os.environ.get("RESEARCH_DIR", os.path.join(os.path.dirname(here), "research")),

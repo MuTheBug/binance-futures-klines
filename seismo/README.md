@@ -13,6 +13,46 @@ touched only for disclosed, one-shot confirmations):
 
 ---
 
+# APEX — the final book (`research/apex.py`)
+
+One more disciplined push past ECHO v2, every change IS-gated (fence
+2024-12-31), robustness-checked, and honestly rejected where it failed:
+
+| candidate | IS test | verdict |
+|---|---|---|
+| D: OI×price interaction sleeve (conviction/unwind quadrants) | blend IS 1.67→1.69 | **reject** (< +0.03 bar) |
+| E: 3-day rebalance cadence | IS 1.67→1.71, phase-stable [1.71/1.71/1.68]; 2-day was phase-noise [1.61/1.82] | **accept** |
+| F: shrunk risk-parity mixing | on daily cadence adds exactly nothing (1.66–1.67 vs 1.67 across shrink 0.25–0.75); its apparent +0.03 was interaction noise | **reject** |
+
+**APEX = ECHO v2 sleeves (40/40/20) at 3-day cadence.** The honest
+conclusion of the whole program: ECHO v2 was already near this dataset's
+alpha frontier — the remaining wins are cost/cadence and sizing.
+
+| APEX | IS | OOS (2025-01→2026-06) | full (6.0y) |
+|---|---|---|---|
+| Sharpe | 1.71 | **3.10** | **2.03** |
+| CAGR @1x | — | — | 120% (117x) |
+
+Positive every year (2022 bear: +50%). Full-period PF 1.36, win 50%,
+maxDD −38% @1x. Block-bootstrap (1-yr paths, 20-day blocks, per-bar
+liquidation): **0% ruin through 3x, 94% ruin at 4x** — the cliff is real,
+do not cross 3x. The 3-day cadence *improved* the tail vs daily ECHO v2
+(which showed ~17% bootstrapped ruin at 3x).
+
+**Recommended deployment 2x: CAGR 303%, Sharpe 2.03, Sortino 3.27,
+maxDD −64%, PF 1.36 — $1k → $4.4M over 6 years** (2.5x: CAGR 408%,
+DD −73%, for iron stomachs only). OOS-read ledger for this round: the
+final assembly was read on OOS twice (once with the later-rejected RP
+variant: 3.22, once final: 3.10); candidates D/E/F were gated on IS only.
+The 2025-01→2026-06 window has been reused across this whole program, so
+treat OOS 3.10 as consistent-with-IS confirmation, not an unbiased
+forward estimate — the conservative forward figure is the IS/full ~1.7–2.0
+Sharpe.
+
+![apex](out/apex_tearsheet.png)
+
+---
+
 # RIFT — dollar-neutral momentum across the alt rift
 
 The market persistently mis-prices the *dispersion* between strong and weak
