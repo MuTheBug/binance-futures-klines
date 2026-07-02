@@ -1,3 +1,79 @@
+# RIFT + SEISMO — a two-family research program with a hard OOS fence
+
+Two unconventional strategy families, developed under one anti-overfitting
+protocol (everything tuned strictly before 2024-07-01; the period after is
+touched only for disclosed, one-shot confirmations):
+
+1. **SEISMO** (liquidation-cascade aftershock reversion) — spectacular
+   in-sample, **decayed out-of-sample**, and is reported below exactly as it
+   failed. Its heartbeat layer retired it using trailing data only.
+2. **RIFT** (cross-sectional momentum long/short) — the survivor and the
+   headline strategy: **out-of-sample Sharpe 1.50 vs 1.52 in-sample**,
+   +381% OOS, confirmed by a param-blind walk-forward.
+
+---
+
+# RIFT — dollar-neutral momentum across the alt rift
+
+The market persistently mis-prices the *dispersion* between strong and weak
+perps. RIFT is long the 10 strongest 30-day performers and short the 10
+weakest, inverse-vol weighted (20% per-name cap per leg), dollar-neutral,
+rebalanced weekly at next-day open, 2x gross leverage, 10 bps/side costs on
+turnover. Because the book is market-neutral, it does not care which way
+the alt market goes — which is exactly what killed the first family. The
+same **anomaly heartbeat** governs it: live capital deploys only while the
+trailing 20 paper cycles are net positive.
+
+## Results (net of costs, daily marks)
+
+| window | total PnL | CAGR | max DD | Sharpe | cycle WR* | cycle PF |
+|---|---|---|---|---|---|---|
+| in-sample (2020-06→2024-06, tuned) | +1,550% | 87% | −39% | 1.52 | 57.4% | 2.05 |
+| **out-of-sample (2024-07→2026-05)** | **+381%** | **125%** | −48% | **1.50** | 54.0% | 1.68 |
+| full period | +14,820% | 118% | −51% | 1.64 | 58.8% | 2.08 |
+| full period, heartbeat-gated (final spec) | +8,486% | 100% | −51% | 1.53 | 59.2% | 2.06 |
+
+\* share of positive weekly cycles among traded cycles.
+
+![rift equity](out/rift_equity.png)
+
+![rift cycles](out/rift_cycles_hist.png)
+
+**Why believe it (this time):**
+
+- **The OOS distribution matches IS** (chart above): Sharpe 1.50 vs 1.52,
+  PF 1.68 vs 2.05 — normal degradation, not collapse.
+- **Param-blind walk-forward** over the OOS period (grid re-tuned each
+  6-month fold on an expanding window ending before the fold): **+212%,
+  CAGR 82%, Sharpe 1.10**. The fold winners were the same parameters
+  3 folds out of 4 — the config is stable, not lucky.
+- **IS plateau**: 94% of the 48-combo grid profitable, 98% with PF>1.
+- **Positive every IS year including the 2022 bear** (+46% while alts fell
+  ~80%): the market-neutral construction, not beta, drives PnL.
+- **Both legs paid OOS** (long +159%, short +65% additive), top
+  contributors are broad real trends (ZEC, XRP, SUI, PENGU…), no
+  single-coin fluke.
+- **Costs doubled to 20 bps/side**: OOS still +301%, Sharpe 1.37.
+- Funding is unmodeled but *helps* this book: shorts on weak alts usually
+  collect funding.
+
+**Leverage menu (gated, full period)** — Sharpe is flat in gross, pick your
+pain: 1x → CAGR 47%, DD −29% · **2x → CAGR 100%, DD −51%** (the spec) ·
+3x → CAGR 152%, DD −68% · 4x → CAGR 173%, DD −80%. At 2x gross the worst
+weekly cycle was ~−25%, far from liquidation on cross-margin.
+
+**Disclosed deviations:** this is the second family tested against the OOS
+fence (the OOS window has now been read 3 times in total across the
+program; everything read is reported here). The 20% per-name cap was added
+after the OOS audit exposed a 54% PAXG concentration — it is
+performance-neutral in *both* windows (IS +1,550%→+1,550%, OOS
++374%→+381%) and is purely a risk fix.
+
+Run: `python3 -m seismo.xsmom` (IS grid) · `python3 -m seismo.final_rift`
+(full evaluation) · `python3 -m seismo.rift_plots` (charts).
+
+---
+
 # SEISMO — trading liquidation cascades like earthquakes
 
 An intentionally unconventional strategy: treat market-wide liquidation
