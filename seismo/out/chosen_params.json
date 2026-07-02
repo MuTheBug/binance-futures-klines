@@ -1,0 +1,19 @@
+{
+  "raw": {
+    "z_thr": 2.5,
+    "aftershock_gap": 24.0,
+    "aftershock_win": 120.0,
+    "n_picks": 5,
+    "hold_hours": 36,
+    "target_risk": 0.1
+  },
+  "hedged": {
+    "z_thr": 2.5,
+    "aftershock_gap": 24.0,
+    "aftershock_win": 96.0,
+    "n_picks": 3,
+    "hold_hours": 36,
+    "target_risk": 0.1
+  },
+  "gate_window": 20
+}
