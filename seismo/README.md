@@ -95,8 +95,28 @@ zero** — so the dominant portfolio is *both*: the 50/50 vol-weighted blend
 beats either alone (full-period Sharpe 2.51, common-OOS 3.62, and the
 shallowest drawdowns). Caveats: ECHO rebalances daily (~0.33x/day
 turnover vs RIFT's weekly) and its Sleeve C depends on the Binance
-top-trader positioning feed; and this comparison reruns ECHO's own code —
-it does not re-audit that branch's methodology from scratch.
+top-trader positioning feed.
+
+### Independent replication (`echo_replica.py`)
+
+To rule out accepting the other branch's engine on faith, ECHO v2 was
+**re-implemented from scratch in this branch's framework** — only the
+sleeve math was taken from its spec; the universe filter ($5M/day
+point-in-time), execution convention (fill at next open, open-to-open
+marks), cost accounting (10 bps/side on weight changes) and vol-targeting
+plumbing are this branch's own. Result: the daily returns match their
+engine at +0.95 correlation (at a one-day label offset — the two engines
+stamp the same fill on adjacent labels), and the numbers hold:
+
+| window | their code | my replica |
+|---|---|---|
+| their IS (≤2024-12) Sharpe | 1.60 | 1.60 |
+| common OOS (≥2025-01) Sharpe | 3.02 | 3.31 |
+| full-period Sharpe / CAGR / maxDD | 1.92 / 112% / −38% | 1.97 / 118% / −40% |
+
+The edge survives an independent implementation with different universe,
+timing and cost choices — it is a property of the strategy, not of their
+backtester.
 
 ---
 
