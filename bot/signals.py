@@ -149,6 +149,7 @@ def compute_targets(client, cfg, log=print):
         "net": round(float(last.sum()), 3),
         "n_long": int((last > 0).sum()),
         "n_short": int((last < 0).sum()),
-        "sleeves": ("A+B+C" if used_C else "A+B") + "+RIFT",
+        "sleeves": ("A+B+C" if used_C else "A+B") +
+                   ("+RIFT" if cfg.blend_echo < 1.0 else ""),
     }
     return targets, info
