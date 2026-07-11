@@ -57,6 +57,7 @@ class Config:
     #     max(dd_floor, 1 - dd_k * current_drawdown). dd_k=0 disables. ---
     dd_k: float = 0.0
     dd_floor: float = 0.25
+    max_entries_bar: int = 999        # cap on new positions opened in one bar
 
 
 @dataclass
@@ -206,9 +207,13 @@ def run(sig: Signals, cfg: Config, start: int = 0, end: int | None = None) -> di
                 elif (not is_long) and (O[t, j] >= level or H[t, j] >= level):
                     fills.append((o[3], j, is_long, max(O[t, j], level), o[1]))
             fills.sort(reverse=True)
+            opened = 0
             for conv, j, is_long, px, atr_sig in fills:
-                heat, gross, _ = try_open(t, j, is_long, px, atr_sig, eq_dec,
-                                          heat, gross, cfg.maker_fee, throttle)
+                if opened >= cfg.max_entries_bar:
+                    break
+                heat, gross, ok = try_open(t, j, is_long, px, atr_sig, eq_dec,
+                                           heat, gross, cfg.maker_fee, throttle)
+                opened += int(ok)
                 pending.pop(j, None)                # order done (filled or no capacity)
             # place new orders from signals at close t-1 (limit at the broken level)
             for j in np.flatnonzero(sig.entry_long[t - 1] | sig.entry_short[t - 1]):
@@ -235,9 +240,13 @@ def run(sig: Signals, cfg: Config, start: int = 0, end: int | None = None) -> di
                     continue
                 cand.append((sig.conviction[t - 1, j], j, is_long))
             cand.sort(reverse=True)
+            opened = 0
             for conv, j, is_long in cand:
-                heat, gross, _ = try_open(t, j, is_long, O[t, j], sig.atr[t - 1, j],
-                                          eq_dec, heat, gross, cfg.cost_per_side, throttle)
+                if opened >= cfg.max_entries_bar:
+                    break
+                heat, gross, ok = try_open(t, j, is_long, O[t, j], sig.atr[t - 1, j],
+                                           eq_dec, heat, gross, cfg.cost_per_side, throttle)
+                opened += int(ok)
 
         # ---- close of bar t: trail stops, flag exits, mark equity ----
         for j, p in pos.items():

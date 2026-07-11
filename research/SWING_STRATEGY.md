@@ -9,8 +9,11 @@ against ruin, and full disclosure of the losing year. Numbers below are what the
 - Standalone CBS: **IS Sharpe 1.12 (CAGR 43%)**, **OOS Sharpe ~0** (2025 −22%, 2026 +53%) — the
   breakout factor itself had a losing 2025 (proven below), not a config artifact.
 - **Recommended deployment: 70/30 blend with the v3 daily L/S trend strategy** (correlation 0.3):
-  IS Sharpe **1.44**, OOS Sharpe **1.43**, OOS CAGR +54%, maxDD −18% — IS≈OOS, the trustworthy kind.
-- Leverage: growth-optimal ≈ 2x on CBS standalone; ruin risk explodes ≥3x. Recommended ≤1.5–2x.
+  IS Sharpe **1.44**, OOS Sharpe **1.43**, FULL CAGR +60%/yr, maxDD −25% — IS≈OOS, the trustworthy kind.
+- Leverage: growth-optimal ≈ 2x on CBS standalone; ruin risk explodes ≥3x. Recommended ≤1.5–2x
+  (blend at 1.5x: OOS Sharpe 1.32, CAGR +73%, maxDD −27%).
+- **Round 2 ("push Sharpe further", §8): six further ideas tested, six rejected.** The robust
+  ceiling of this price+volume dataset is ~1.4–1.5; going beyond needs orthogonal data (§8).
 
 Last updated 2026-07-11. Data: Binance USDT-M perps, 1h→4h bars 2022-05→2026-06 (126 crypto
 symbols after excluding tokenized stocks/metals), daily bars from 2020 for regime/universe.
@@ -76,6 +79,10 @@ mostly in cash; leverage multiplies this (§5).
 | Buy-the-dip (breakdown in uptrend) | event ≈ 0 (t<3 at all horizons) | reject |
 | Tight time stop (7d) | cuts winners exactly where edge keeps growing | reject (no time stop) |
 
+Round-2 rejects (§8): capitulation-reversal sleeve (event edge real, trade structure can't harvest
+it), momentum-pop breadth entries, per-bar entry-clustering cap, relative-strength leader filter,
+blend-level vol targeting, dynamic inverse-vol sleeve weights.
+
 ## 4. Results (frozen config, realistic costs incl. funding)
 
 | Window | Years | CAGR | Sharpe | maxDD | trades | win | avgR |
@@ -133,6 +140,12 @@ That is the institutional-grade product here: **70% v3 + 30% CBS at ≤1.5–2x 
 (historically ≈ 4–6%/mo median at 1.5–2x; NOT 40%/mo — see v3 STRATEGY.md §5 for why that's
 impossible). CBS earns its seat by convexity in trending years (2023/24/26), v3 carries chop years.
 
+Definitive blend (`blend_swing.py`): FULL (2022-08→2026-06) **Sharpe 1.43, CAGR +60%/yr,
+maxDD −25%**, monthly median +1.2%, 60% positive, worst −9.8%. Yearly: 2022(Aug–) −6%, 2023 +57%,
+2024 +114%, 2025 +35%, 2026(→Jun) +108% ann. Levered: 1.5x → IS/OOS Sharpe 1.35/1.32, CAGR
++87%/+73%, DD −38/−27; 2.0x → 1.30/1.27, +106%/+90%, DD −50/−35 (approximation: returns scaled,
+extra gross pays funding; use the engine ladder in §5 for the path-accurate CBS view).
+
 ## 7. Operating procedure & how to run
 
 - Rebalance point: 4h closes (UTC 00/04/08/12/16/20). Place/refresh retest limits after each close;
@@ -145,7 +158,8 @@ impossible). CBS earns its seat by convexity in trending years (2023/24/26), v3 
 ```bash
 cd research
 python3 swing_data.py        # build 1h/1d caches + 4h matrices (once)
-python3 run_swing.py --oos   # DEFINITIVE strategy: IS + one-shot OOS + artifacts
+python3 run_swing.py --oos   # DEFINITIVE CBS sleeve: IS + one-shot OOS + artifacts
+python3 blend_swing.py       # DEFINITIVE portfolio: 70/30 v3+CBS tearsheet + leverage
 python3 validate_swing.py    # plateau, stress, leverage ladder, bootstrap, sleeve blend
 python3 sweep_swing.py       # IS-only search history (kept for the record)
 ```
@@ -158,3 +172,34 @@ Artifacts in `results/swing_*`.
 not measured; funding generic (real per-coin funding files not in repo for 4h grid); liquidation
 modeled at bar granularity. The OOS year was negative standalone — deploy this as a sleeve, not a
 whole book, and only with the blend + leverage limits above.
+
+---
+
+## 8. Round 2 — "push the Sharpe much further": what survived honest testing
+
+Everything below was evaluated IS-first; OOS was read once per final decision, never to select.
+
+| Idea | IS evidence | Verdict |
+|---|---|---|
+| Capitulation-reversal sleeve (z12<−3 / 3+ATR below EMA20, TP at EMA20 reclaim) | event edge REAL (+2.8%/1d, t=6.1, median +2.3%) but every trade form loses (Sharpe −0.3..−1.3): capitulation ATR is elevated → risking ~3 ATR to make ~1.5, and episode clustering means the book catches the first (worst) knife | **reject** |
+| — refinements: green-bar confirmation; limit ladder 1–1.5 ATR below | still negative (−0.26..−0.59) | reject |
+| Momentum-pop breadth entries (z12>+2 in uptrend, t=17.6 event) | +0.01 Sharpe — overlaps CBS | reject (parsimony) |
+| Per-bar entry-clustering cap (2/4/6) | neutral-to-harmful (0.96–1.13 vs 1.12) | reject |
+| Relative-strength leader filter (top 50–80% trend rank) | monotonically worse (1.12→0.74): breakout alpha is BROAD, not leader-concentrated | reject |
+| Blend-level vol targeting (25–40%) | 1.44→1.26–1.30: v3 is already vol-targeted; double-targeting adds lag | reject |
+| Dynamic inverse-vol sleeve weights | IS 1.64 looked great but overweights CBS exactly when it idles in cash (vol artifact); static-mix plateau 1.52–1.58 on same window; **OOS 1.31 < static 1.43** | reject |
+
+**The ceiling, stated plainly:** on this dataset (prices + volume only), the robust, OOS-confirmed
+ceiling is **~1.4–1.5 blended**. This is the same wall v3's research hit (STRATEGY.md §6). More
+1-D knob-turning past this point manufactures backtest Sharpe, not live Sharpe.
+
+**The real road to Sharpe ≥ 2 (orthogonal information, in priority order):**
+1. **Real per-coin funding on the 4h grid** (`fetch_funding.py` exists; needs network) — funding
+   spikes mark crowded breakouts; a funding-aware entry filter is the cheapest genuine upgrade.
+2. **Liquidation cascades / open interest** (Binance provides OI + forced-liquidation feeds) —
+   would likely fix the reversal sleeve: capitulation with a liquidation spike is a different
+   animal than slow bleed, and the event study can't tell them apart from price alone.
+3. **Options-implied vol/skew** (Deribit) for regime; **on-chain flows** for coin selection.
+4. **More independent bets**: intraday execution across sessions (needs tick data/infra).
+Each new orthogonal sleeve at Sharpe ~0.7 and correlation ~0.2 adds roughly +0.15–0.25 to the
+blend; that is how 1.4 becomes 2.0 — breadth of alphas, not deeper tuning of one.

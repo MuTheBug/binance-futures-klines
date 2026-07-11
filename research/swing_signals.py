@@ -87,6 +87,13 @@ class Base:
         btc_above = (Cd["BTC"] > ema["BTC"]).astype(float).to_frame("BTC")
         self.mkt4 = _daily_to_4h(btc_above, self.index, ["BTC"])["BTC"].fillna(0.0) > 0.5
 
+        # ---- reversal-sleeve precomputes (4h) ----
+        ret1 = self.C.pct_change()
+        self.z12 = (self.C / self.C.shift(12) - 1.0) / \
+            (ret1.rolling(60, min_periods=30).std() * np.sqrt(12))
+        self.ema20_4h = self.C.ewm(span=20, min_periods=10).mean()
+        self.dist_atr = (self.C - self.ema20_4h) / self.atr
+
         # last valid close per symbol (for delist handling)
         valid = self.C.notna().to_numpy()
         Tn = len(self.index)
@@ -95,7 +102,7 @@ class Base:
 
     def build(self, N: int = 20, comp_q: float = 0.35, ts_thr: float = 0.10,
               vol_conf: float | None = None, require_compression: bool = True,
-              mkt_gate: bool = False) -> Signals:
+              mkt_gate: bool = False, mom_z: float | None = None) -> Signals:
         reg_l = (self.above4 > 0.5) & (self.ts4 > ts_thr)
         reg_s = (self.above4 < 0.5) & (self.ts4 < -ts_thr)
 
@@ -110,6 +117,11 @@ class Base:
 
         e_l = (brk_l & reg_l & ok).fillna(False)
         e_s = (brk_s & reg_s & ok).fillna(False)
+        lvl_l = self.hh[N].copy()
+        if mom_z is not None:            # extra breadth: momentum-pop entries
+            e_mom = ((self.z12 > mom_z) & reg_l & ok).fillna(False)
+            lvl_l = lvl_l.where(e_l | ~e_mom, self.C - self.atr)  # limit 1 ATR below
+            e_l = e_l | e_mom
         if mkt_gate:                     # block NEW longs when BTC below daily EMA50
             e_l = e_l & self.mkt4.to_numpy()[:, None]
             e_s = e_s & (~self.mkt4.to_numpy())[:, None]
@@ -123,7 +135,44 @@ class Base:
             regime_short=reg_s.fillna(False).to_numpy(bool),
             conviction=self.ts4.abs().fillna(0.0).to_numpy("float64"),
             atr=self.atr.to_numpy("float64"),
-            level_long=self.hh[N].to_numpy("float64"),
+            level_long=lvl_l.to_numpy("float64"),
             level_short=self.ll[N].to_numpy("float64"),
+            last_bar=self.last_bar,
+        )
+
+    def build_reversal(self, z_thr: float = -3.0, dist_thr: float = -3.0,
+                       mode: str = "either", confirm: bool = False,
+                       limit_atr: float = 0.0) -> Signals:
+        """Capitulation-bounce sleeve (long-only, any daily regime).
+
+        Entry at close t when the 12-bar return z-score < z_thr and/or close
+        sits dist_thr ATRs below the 4h EMA20 (mode: "z" | "dist" | "either"
+        | "both"). Take-profit is encoded through regime_long = (close still
+        BELOW EMA20): once price reclaims the mean, the engine exits at the
+        next open. Conviction = depth of the dislocation.
+        """
+        z_hit = self.z12 < z_thr
+        d_hit = self.dist_atr < dist_thr
+        hit = {"z": z_hit, "dist": d_hit,
+               "either": z_hit | d_hit, "both": z_hit & d_hit}[mode]
+        if confirm:                       # capitulation printed, then a green bar
+            hit = hit.shift(1) & (self.C > self.O)
+        ok = self.elig4 & self.atr.notna() & self.C.notna()
+        e_l = (hit & ok).fillna(False)
+        stay = (self.C < self.ema20_4h).fillna(False)   # exit next open on reclaim
+        false_m = np.zeros(e_l.shape, dtype=bool)
+        conv = (-self.dist_atr).clip(lower=0).fillna(0.0) + \
+               (-self.z12).clip(lower=0).fillna(0.0)
+        return Signals(
+            index=self.index, symbols=self.symbols,
+            O=self.O.to_numpy("float64"), H=self.H.to_numpy("float64"),
+            L=self.L.to_numpy("float64"), C=self.C.to_numpy("float64"),
+            entry_long=e_l.to_numpy(bool), entry_short=false_m,
+            regime_long=stay.to_numpy(bool), regime_short=false_m,
+            conviction=conv.to_numpy("float64"),
+            atr=self.atr.to_numpy("float64"),
+            # limit ladder below the signal close (used with entry_mode="retest")
+            level_long=(self.C - limit_atr * self.atr).to_numpy("float64"),
+            level_short=self.C.to_numpy("float64"),
             last_bar=self.last_bar,
         )
