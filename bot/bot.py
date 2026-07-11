@@ -107,6 +107,21 @@ class EchoBot:
             self.state["paused"] = True
             return
 
+        # soft profit-trailing throttle (backtested in research/trailing.py):
+        # halve the book past trail_dd drawdown, restore after half-recovery.
+        # Sits below the hard circuit breaker; disable with TRAIL_DD=0.
+        if cfg.trail_dd > 0:
+            throttled = bool(self.state["throttled"])
+            if throttled and dd >= -cfg.trail_dd / 2:
+                self.state["throttled"] = False
+                self.alert(f"🟢 trailing throttle OFF (drawdown recovered to {pct(dd)})")
+            elif not throttled and dd <= -cfg.trail_dd:
+                self.state["throttled"] = True
+                self.alert(f"🟠 trailing throttle ON: drawdown {pct(dd)} ≤ -{cfg.trail_dd:.0%} — "
+                           f"book scaled x{cfg.trail_throttle:g} until DD < {cfg.trail_dd / 2:.0%}")
+            if self.state["throttled"]:
+                targets = {s: w * cfg.trail_throttle for s, w in targets.items()}
+
         if self.live_blocked and not cfg.dry_run:
             self.alert("⛔ Account is in HEDGE mode — refusing live orders (this bot needs "
                        "One-way mode). Switch Position Mode to One-way, then /resume.\n" +

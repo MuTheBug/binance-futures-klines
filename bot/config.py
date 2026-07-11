@@ -71,6 +71,8 @@ class Config:
     # --- Risk controls ---
     dry_run: bool = True                  # SAFE DEFAULT: do not send real orders
     max_drawdown_stop: float = 0.45       # circuit breaker: flatten + pause beyond this DD
+    trail_dd: float = 0.25                # soft trailing throttle: halve book past this DD (0=off)
+    trail_throttle: float = 0.5           # scale factor while throttled
     min_order_usdt: float = 5.0           # skip dust orders below this notional
     rebalance_band: float = 0.25          # only trade a name if |target-current| > band*|target_step|
     exec_style: str = "market"            # "maker" = post-only limit first, market fallback
@@ -111,6 +113,8 @@ class Config:
             klines_limit=_i("KLINES_LIMIT", 300),
             dry_run=_b("DRY_RUN", True),
             max_drawdown_stop=_f("MAX_DRAWDOWN_STOP", 0.45),
+            trail_dd=_f("TRAIL_DD", 0.25),
+            trail_throttle=_f("TRAIL_THROTTLE", 0.5),
             min_order_usdt=_f("MIN_ORDER_USDT", 5.0),
             rebalance_band=_f("REBALANCE_BAND", 0.25),
             exec_style=os.environ.get("EXEC_STYLE", "market").strip().lower(),
