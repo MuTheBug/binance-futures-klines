@@ -62,6 +62,8 @@ class Config:
     blend_echo: float = 0.80              # weight on ECHO book; rest on RIFT book
     max_gross: float = 3.0                # hard cap on total |notional|/equity (safety)
     binance_leverage: int = 5             # per-symbol leverage set on Binance (margin headroom)
+    conviction_floor: float = 0.30        # drop weakest 30% of names by |w| (0=off; pf_push S2)
+    min_gross: float = 1.3                # stand flat if final gross below this (0=off; pf_push S4)
     max_positions: int = 30               # keep only the strongest N target positions
                                           # (combined book holds ~27 names; truncating to 14 costs ~0.2 Sharpe)
     min_history_days: int = 60
@@ -75,7 +77,7 @@ class Config:
     trail_throttle: float = 0.5           # scale factor while throttled
     min_order_usdt: float = 5.0           # skip dust orders below this notional
     rebalance_band: float = 0.25          # only trade a name if |target-current| > band*|target_step|
-    exec_style: str = "market"            # "maker" = post-only limit first, market fallback
+    exec_style: str = "maker"             # post-only limit first, market fallback ("market" to disable)
     maker_wait_s: int = 45                # seconds to wait for a maker fill before falling back
 
     # --- Schedule ---
@@ -107,6 +109,8 @@ class Config:
             blend_echo=_f("BLEND_ECHO", 0.80),
             max_gross=_f("MAX_GROSS", 3.0),
             binance_leverage=_i("BINANCE_LEVERAGE", 5),
+            conviction_floor=_f("CONVICTION_FLOOR", 0.30),
+            min_gross=_f("MIN_GROSS", 1.3),
             max_positions=_i("MAX_POSITIONS", 30),
             min_history_days=_i("MIN_HISTORY_DAYS", 60),
             min_dollar_vol=_f("MIN_DOLLAR_VOL", 5_000_000.0),
@@ -117,7 +121,7 @@ class Config:
             trail_throttle=_f("TRAIL_THROTTLE", 0.5),
             min_order_usdt=_f("MIN_ORDER_USDT", 5.0),
             rebalance_band=_f("REBALANCE_BAND", 0.25),
-            exec_style=os.environ.get("EXEC_STYLE", "market").strip().lower(),
+            exec_style=os.environ.get("EXEC_STYLE", "maker").strip().lower(),
             maker_wait_s=_i("MAKER_WAIT_S", 45),
             rebalance_utc_hour=_i("REBALANCE_UTC_HOUR", 0),
             rebalance_utc_minute=_i("REBALANCE_UTC_MINUTE", 5),

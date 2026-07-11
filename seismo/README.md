@@ -13,6 +13,40 @@ touched only for disclosed, one-shot confirmations):
 
 ---
 
+# APEX-PF — pushing Profit Factor & Win Rate (`research/pf_push.py`)
+
+Every honest lever on PF/WR, IS-gated under a protect-returns rule (accept
+only if PF or WR improves AND IS Sharpe & CAGR stay within 5%). Leverage is
+excluded a priori: PF and WR are scale-invariant. Full table in
+`seismo/out/pf_push_results.csv`.
+
+Accepted: **C1** maker execution (4bps) · **C2** rebalance deadband 0.25
+(already the bot default — now backtest-validated) · **S2** conviction
+floor (drop weakest 30% of names, recycle gross into the strongest) ·
+**S4** dust-day skip · **P2** trailing throttle. Rejected: longer
+smoothing, A/B agreement scaling (confirms the other branch's finding),
+downside-vol targeting (helps CAGR, not PF/WR), deadband 0.5. Funding
+tilt (S3): **untestable** — committed funding history starts 2026-04,
+after the IS fence.
+
+Composed book (all accepted levers), one disclosed OOS read:
+
+| APEX-PF | PF daily | WR daily | PF weekly | WR weekly | PF monthly | WR monthly | Sharpe | CAGR |
+|---|---|---|---|---|---|---|---|---|
+| IS (tuned) | 1.32 | 51.2% | 2.09 | 57.3% | 4.7 | 61.5% | 1.81 | 101% |
+| OOS (2025-01→) | 1.62 | 56.8% | 3.50 | 62.7% | 20.1 | 83.3% | 3.31 | 270% |
+| **full 6y** | **1.39** | **52.6%** | **2.36** | **58.8%** | **6.2** | **67.1%** | **2.15** | **133%** |
+
+Note the horizon effect (same book, same trades): daily WR ~53% becomes
+~59% weekly and ~67% monthly purely because positive drift accumulates —
+quote the horizon when quoting the number. A daily WR far above ~55% is
+not achievable for this strategy class without sacrificing returns.
+
+Bot wiring (defaults now = APEX-PF spec): `EXEC_STYLE=maker`,
+`CONVICTION_FLOOR=0.30`, `MIN_GROSS=1.3` (scale with LEVERAGE; 0 = off),
+`REBALANCE_BAND=0.25`, trailing throttle on. Selftest and the conformance
+audit (overlap 91%) both pass.
+
 # APEX — the final book (`research/apex.py`)
 
 One more disciplined push past ECHO v2, every change IS-gated (fence

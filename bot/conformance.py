@@ -68,12 +68,21 @@ def research_targets(cfg, st, engine, echo, altdata, lab,
                            max_leverage=3.0)
     last = wv.iloc[-1].dropna()
     last = last[last.abs() > 1e-6] * cfg.leverage
+    if cfg.conviction_floor > 0 and len(last) > 5:
+        thr = last.abs().quantile(cfg.conviction_floor)
+        g0 = float(last.abs().sum())
+        last = last[last.abs() >= thr]
+        if last.abs().sum() > 0:
+            last = last * (g0 / float(last.abs().sum()))
     if len(last) > cfg.max_positions:
         last = last.reindex(last.abs().sort_values(ascending=False)
                             .index[:cfg.max_positions])
     gross = float(last.abs().sum())
     if gross > cfg.max_gross:
         last = last * (cfg.max_gross / gross)
+        gross = cfg.max_gross
+    if 0 < gross < cfg.min_gross:
+        last = last.iloc[0:0]
     return {b + "USDT": float(w) for b, w in last.items()}, close.index[-1]
 
 

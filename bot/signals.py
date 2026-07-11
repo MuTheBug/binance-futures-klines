@@ -130,6 +130,16 @@ def compute_targets(client, cfg, log=print):
     last = wv.iloc[-1].dropna()
     last = last[last.abs() > 1e-6] * cfg.leverage      # apply strategy leverage multiplier
 
+    # conviction floor (research/pf_push.py S2): drop the weakest names by
+    # |weight| and recycle their gross into the strongest -- raises win rate
+    # and PF at unchanged Sharpe/CAGR
+    if cfg.conviction_floor > 0 and len(last) > 5:
+        thr = last.abs().quantile(cfg.conviction_floor)
+        g0 = float(last.abs().sum())
+        last = last[last.abs() >= thr]
+        if last.abs().sum() > 0:
+            last = last * (g0 / float(last.abs().sum()))
+
     # keep only the strongest N positions (runnable on a small account)
     if len(last) > cfg.max_positions:
         last = last.reindex(last.abs().sort_values(ascending=False).index[:cfg.max_positions])
@@ -138,6 +148,12 @@ def compute_targets(client, cfg, log=print):
     if gross > cfg.max_gross:                          # safety cap on total exposure
         last = last * (cfg.max_gross / gross)
         gross = cfg.max_gross
+
+    # dust-day skip (pf_push S4): a near-empty book has ~zero expectancy but
+    # still pays costs and coin-flip days -- stand flat instead
+    if 0 < gross < cfg.min_gross:
+        last = last.iloc[0:0]
+        gross = 0.0
 
     targets = {base_to_symbol[b]: float(w) for b, w in last.items() if b in base_to_symbol}
     info = {
