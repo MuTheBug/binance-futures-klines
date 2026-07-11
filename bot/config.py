@@ -73,6 +73,8 @@ class Config:
     max_drawdown_stop: float = 0.45       # circuit breaker: flatten + pause beyond this DD
     min_order_usdt: float = 5.0           # skip dust orders below this notional
     rebalance_band: float = 0.25          # only trade a name if |target-current| > band*|target_step|
+    exec_style: str = "market"            # "maker" = post-only limit first, market fallback
+    maker_wait_s: int = 45                # seconds to wait for a maker fill before falling back
 
     # --- Schedule ---
     rebalance_utc_hour: int = 0           # rebalance time (UTC), after the daily close
@@ -111,6 +113,8 @@ class Config:
             max_drawdown_stop=_f("MAX_DRAWDOWN_STOP", 0.45),
             min_order_usdt=_f("MIN_ORDER_USDT", 5.0),
             rebalance_band=_f("REBALANCE_BAND", 0.25),
+            exec_style=os.environ.get("EXEC_STYLE", "market").strip().lower(),
+            maker_wait_s=_i("MAKER_WAIT_S", 45),
             rebalance_utc_hour=_i("REBALANCE_UTC_HOUR", 0),
             rebalance_utc_minute=_i("REBALANCE_UTC_MINUTE", 5),
             rebalance_every_days=max(1, _i("REBALANCE_EVERY_DAYS", 3)),

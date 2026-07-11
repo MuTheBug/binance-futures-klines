@@ -147,6 +147,39 @@ class BinanceFutures:
         except BinanceError as e:
             return {"error": str(e), "symbol": symbol}
 
+    def book_ticker(self, symbol):
+        """Best bid/ask for a symbol."""
+        res = self._request("GET", "/fapi/v1/ticker/bookTicker",
+                            params={"symbol": symbol})
+        return float(res["bidPrice"]), float(res["askPrice"])
+
+    def round_price(self, symbol, price):
+        f = self._filters.get(symbol)
+        if not f or f.get("tick", 0) <= 0:
+            return float(price)
+        tick = f["tick"]
+        rounded = math.floor(float(price) / tick) * tick
+        decimals = max(0, int(round(-math.log10(tick)))) if tick < 1 else 0
+        return round(rounded, decimals)
+
+    def place_post_only(self, symbol, side, quantity, price, reduce_only=False):
+        """Post-only (GTX) limit order: joins the book as maker or is rejected."""
+        params = {"symbol": symbol, "side": side, "type": "LIMIT",
+                  "timeInForce": "GTX", "quantity": quantity, "price": price}
+        if reduce_only:
+            params["reduceOnly"] = "true"
+        if self.dry_run:
+            return {"dry_run": True, **params}
+        return self._request("POST", "/fapi/v1/order", signed=True, params=params)
+
+    def get_order(self, symbol, order_id):
+        return self._request("GET", "/fapi/v1/order", signed=True,
+                             params={"symbol": symbol, "orderId": order_id})
+
+    def cancel_order(self, symbol, order_id):
+        return self._request("DELETE", "/fapi/v1/order", signed=True,
+                             params={"symbol": symbol, "orderId": order_id})
+
     def place_order(self, symbol, side, quantity, reduce_only=False, order_type="MARKET"):
         """Place a futures order. side in {BUY, SELL}, quantity > 0 (already rounded).
         Honours dry_run (returns the intended order without sending)."""

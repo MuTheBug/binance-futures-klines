@@ -73,15 +73,60 @@ def reconcile(targets, equity, positions, prices, client, cfg):
     return orders
 
 
+def _execute_maker(o, client, cfg, log=print):
+    """Try a post-only limit at the passive touch; on timeout/rejection fall
+    back to a market order for the remainder. Saves ~3-5bps/side of
+    taker fee + spread on a book whose signals move over days, not seconds."""
+    import time as _t
+    bid, ask = client.book_ticker(o.symbol)
+    px = client.round_price(o.symbol, bid if o.side == "BUY" else ask)
+    res = client.place_post_only(o.symbol, o.side, o.qty, px,
+                                 reduce_only=o.reduce_only)
+    oid = res.get("orderId")
+    if oid is None:                      # GTX rejected (would cross) or odd reply
+        return client.place_order(o.symbol, o.side, o.qty,
+                                  reduce_only=o.reduce_only)
+    deadline = _t.time() + max(5, getattr(cfg, "maker_wait_s", 45))
+    while _t.time() < deadline:
+        _t.sleep(3)
+        st = client.get_order(o.symbol, oid)
+        if st.get("status") == "FILLED":
+            return st
+        if st.get("status") in ("CANCELED", "EXPIRED", "REJECTED"):
+            break
+    try:
+        client.cancel_order(o.symbol, oid)
+    except Exception:
+        pass
+    st = client.get_order(o.symbol, oid)
+    rem = client.round_qty(o.symbol, o.qty - float(st.get("executedQty", 0) or 0))
+    if rem > 0:
+        return client.place_order(o.symbol, o.side, rem,
+                                  reduce_only=o.reduce_only)
+    return st
+
+
 def execute(orders, client, cfg, log=print):
     """Set leverage on touched symbols, then place each order. Returns a result summary."""
     placed, errors = [], []
     touched = sorted({o.symbol for o in orders})
     for sym in touched:
         client.set_leverage(sym, cfg.binance_leverage)
+    use_maker = (getattr(cfg, "exec_style", "market") == "maker"
+                 and hasattr(client, "book_ticker")
+                 and not getattr(client, "dry_run", True))
     for o in orders:
         try:
-            res = client.place_order(o.symbol, o.side, o.qty, reduce_only=o.reduce_only)
+            if use_maker:
+                try:
+                    res = _execute_maker(o, client, cfg, log)
+                except Exception as me:      # NEVER leave a rebalance unexecuted
+                    log(f"  [maker->market] {o.symbol}: {me}")
+                    res = client.place_order(o.symbol, o.side, o.qty,
+                                             reduce_only=o.reduce_only)
+            else:
+                res = client.place_order(o.symbol, o.side, o.qty,
+                                         reduce_only=o.reduce_only)
             placed.append((o, res))
             tag = "DRY" if res.get("dry_run") else "SENT"
             log(f"  [{tag}] {o.side:4} {o.qty:<12g} {o.symbol:14} ~${o.notional:,.2f} ({o.reason})")
