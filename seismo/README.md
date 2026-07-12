@@ -67,6 +67,32 @@ test window or (b) a one-way bull market. Verdict from the data:
   reused across the research program, so the conservative forward figure
   is the IS Sharpe ~1.7–1.8, not the OOS 3.3.
 
+# What's left: the frontier map (`research/hour_scan.py`)
+
+**E1 — rebalance boundary (tested, rejected).** Daily bars rebuilt from 1h
+data at boundary hours {0,4,8,12,16,20}: IS Sharpe spans 1.17–1.31 with no
+neighbor-supported winner (h=8 peaks but both neighbors sit *below* the
+h=0 baseline — phase noise, same signature as the 2-day cadence). The
+00:00 UTC boundary stands. This closes the last untested execution
+dimension on local data.
+
+**E2 — sleeve C breadth scaling (evidence for the roadmap).** Sleeve C on
+random half-coverage (n≈19) averages IS Sharpe 0.99; full coverage (n=38)
+gives 1.19 — breadth scaling confirmed (ratio 1.20 vs √2's 1.41; sub-√2
+because names correlate).
+
+**Roadmap (requires normal internet; fetchers are committed):**
+1. `altdata/fetch_metrics.py` for ALL ~140 perps → sleeve C breadth ×3.
+   By the measured scaling, C standalone could reach ~1.7–2.1 *if* the IC
+   holds on the wider universe — the highest-expected-value item left in
+   this project. Then re-run `research/altdata_sleeves.py` (the IS-gated
+   acceptance test decides, not hope).
+2. `altdata/fetch_funding.py` for 2020→2026 funding → makes the funding
+   tilt (S3) testable and enables funding-accurate simulation
+   (`engine.simulate(funding_matrix=...)` already supports it).
+3. Beyond that: capital, deposits, and time — the levers that actually
+   move dollars at small account sizes.
+
 # APEX — the final book (`research/apex.py`)
 
 One more disciplined push past ECHO v2, every change IS-gated (fence
