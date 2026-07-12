@@ -47,6 +47,26 @@ Bot wiring (defaults now = APEX-PF spec): `EXEC_STYLE=maker`,
 `REBALANCE_BAND=0.25`, trailing throttle on. Selftest and the conformance
 audit (overlap 91%) both pass.
 
+### Skeptic's audit of the OOS numbers
+
+A reviewer challenged the OOS monthly PF of 20.1 as either (a) too short a
+test window or (b) a one-way bull market. Verdict from the data:
+
+- **(a) is fair.** PF_m = 20.1 rests on n = 18 months (15 up / 3 down,
+  worst −9.0%); its bootstrap 90% CI is [6.4, ∞) — an unstable
+  small-sample statistic that should never be a headline. The defensible
+  OOS number is the **daily PF 1.62 on n = 523 days**.
+- **(b) is factually wrong.** Over the OOS window (2025-01→2026-06) the
+  equal-weight alt market fell **−50.3%** (max DD −72%) and BTC fell −22%
+  (−50% peak-to-trough) — the opposite of a one-way bull. The book is
+  long/short: OOS it earned **more** in market-down months (+14.9%/mo,
+  91% win, n=11) than in up months (+6.4%/mo, n=7), with daily
+  correlation to the market of **−0.18** (beta −0.10). Full 6y: in all 39
+  market-down months it averaged +6.1%/mo (62% win).
+- The real caveat is the one already on record: this OOS window has been
+  reused across the research program, so the conservative forward figure
+  is the IS Sharpe ~1.7–1.8, not the OOS 3.3.
+
 # APEX — the final book (`research/apex.py`)
 
 One more disciplined push past ECHO v2, every change IS-gated (fence
