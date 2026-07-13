@@ -93,6 +93,32 @@ because names correlate).
 3. Beyond that: capital, deposits, and time — the levers that actually
    move dollars at small account sizes.
 
+# MICRO-100 — the $100-account edition (`research/micro100.py`)
+
+At $100 equity the binding constraint is Binance's ~$5 minimum order, so
+every design choice was re-searched inside a **dollar-level simulator**
+(order quantization, skipped dust orders, 10 bps/side) instead of the
+smooth weight-space engine. Findings (IS-gated, plateau rule):
+
+- **Position count has an interior optimum at N≈14–16, not 8**: Sharpe
+  rises 1.30→1.81 from N=5 to 16, decays by N=20 as dust-skips bite.
+  Earlier advice of `MAX_POSITIONS=8` for $100 was measurably wrong.
+- **Renormalizing after truncation is harmful** (tested, rejected): it
+  restores target gross but produces −90% drawdowns; truncation-without-
+  renorm acts as free de-risking.
+- **The 40/40/20 sleeve blend survives concentration** (A-only and A-heavy
+  mixes are much worse even with 14 slots), 3-day cadence stands, and
+  2x remains the right leverage (2.5x adds DD, not Sharpe).
+
+**Final $100 spec: `MAX_POSITIONS=14`, `LEVERAGE=2.0`, everything else
+default.** Quantized full-period backtest: **Sharpe 1.89, CAGR 248%,
+PF 1.33, DD −62%** — vs 1.57 / 141% for the old N=8 proxy. Monte-Carlo
+from $100 (conservative: assumes the granularity handicap never fades;
+in reality it vanishes as the account grows past ~$500): median
+month-12 **$331**, month-24 **$1,174**, month-48 **$14,591**
+(bad-case p5: $707; 0% simulated liquidations). Full table:
+`out/projection_100usd_final.csv`.
+
 # APEX — the final book (`research/apex.py`)
 
 One more disciplined push past ECHO v2, every change IS-gated (fence
