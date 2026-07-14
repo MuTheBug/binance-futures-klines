@@ -45,7 +45,8 @@ def _i(name, default):
 
 @dataclass
 class Config:
-    # --- Binance ---
+    # --- Exchange ---
+    exchange: str = "binance"             # "binance" or "bybit" (EXCHANGE env)
     api_key: str = ""
     api_secret: str = ""
     testnet: bool = True                  # SAFE DEFAULT: testnet
@@ -96,10 +97,21 @@ class Config:
         _load_dotenv()
         here = os.path.dirname(os.path.abspath(__file__))
         chat_ids = [c.strip() for c in os.environ.get("TG_CHAT_IDS", "").split(",") if c.strip()]
+        # pick credentials/testnet for the selected venue (Binance = default)
+        exchange = os.environ.get("EXCHANGE", "binance").strip().lower()
+        if exchange == "bybit":
+            api_key = os.environ.get("BYBIT_API_KEY", os.environ.get("BINANCE_API_KEY", ""))
+            api_secret = os.environ.get("BYBIT_API_SECRET", os.environ.get("BINANCE_API_SECRET", ""))
+            testnet = _b("BYBIT_TESTNET", _b("BINANCE_TESTNET", True))
+        else:
+            api_key = os.environ.get("BINANCE_API_KEY", "")
+            api_secret = os.environ.get("BINANCE_API_SECRET", "")
+            testnet = _b("BINANCE_TESTNET", True)
         return cls(
-            api_key=os.environ.get("BINANCE_API_KEY", ""),
-            api_secret=os.environ.get("BINANCE_API_SECRET", ""),
-            testnet=_b("BINANCE_TESTNET", True),
+            exchange=exchange,
+            api_key=api_key,
+            api_secret=api_secret,
+            testnet=testnet,
             recv_window=_i("BINANCE_RECV_WINDOW", 5000),
             tg_token=os.environ.get("TG_TOKEN", ""),
             tg_chat_ids=chat_ids,
@@ -135,7 +147,8 @@ class Config:
     def summary(self) -> str:
         net = "TESTNET" if self.testnet else "MAINNET"
         mode = "DRY-RUN" if self.dry_run else "LIVE"
-        return (f"net={net} mode={mode} lev={self.leverage:g}x targetVol={self.target_vol:g} "
+        return (f"venue={self.exchange} net={net} mode={mode} lev={self.leverage:g}x "
+                f"targetVol={self.target_vol:g} "
                 f"echo/rift={self.blend_echo:g}/{1-self.blend_echo:g} maxGross={self.max_gross:g}x "
                 f"maxPos={self.max_positions} rebal={self.rebalance_utc_hour:02d}:"
                 f"{self.rebalance_utc_minute:02d}UTC")

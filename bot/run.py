@@ -18,9 +18,10 @@ def main():
         selftest.run()
         return
     if "--signal" in sys.argv:
-        from exchange import BinanceFutures
+        from exchange import make_exchange
         import signals
-        ex = BinanceFutures(cfg.api_key, cfg.api_secret, testnet=cfg.testnet, dry_run=True)
+        ex = make_exchange(cfg)
+        ex.dry_run = True
         targets, info = signals.compute_targets(ex, cfg)
         print("\nINFO:", info)
         for s, w in sorted(targets.items(), key=lambda kv: -abs(kv[1])):

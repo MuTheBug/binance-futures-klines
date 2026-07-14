@@ -15,7 +15,7 @@ import datetime as dt
 import traceback
 
 from config import Config
-from exchange import BinanceFutures, BinanceError
+from exchange import make_exchange, BinanceError
 from notifier import Telegram
 from state import State
 import signals
@@ -33,8 +33,7 @@ def pct(x):
 class EchoBot:
     def __init__(self, cfg: Config):
         self.cfg = cfg
-        self.ex = BinanceFutures(cfg.api_key, cfg.api_secret, testnet=cfg.testnet,
-                                 recv_window=cfg.recv_window, dry_run=cfg.dry_run)
+        self.ex = make_exchange(cfg)
         self.tg = Telegram(cfg.tg_token, cfg.tg_chat_ids)
         self.state = State(cfg.state_path)
         self.tg.offset = self.state["tg_offset"]
