@@ -188,3 +188,32 @@ python3 explore_v4.py      # H1/H2/H3 search (all rejected)
 python3 robust_v4.py       # pump-follow gauntlet
 python3 final_v4.py        # v4 blend tearsheet + leverage table
 ```
+
+---
+
+## 9. Swing-trading book (2026-10-28): target Sharpe 2.0 — **missed; fails out-of-sample**
+
+Discrete trades with ATR stops, holding 5–30 days (`swing.py`, `swing_final.py`). To get a clean
+holdout despite earlier repo work having seen 2025-26, coins were split at random (seed 7). All
+design used the DEV half, data ≤2024. Pre-committed bar: Sharpe ≥1.5 on both tests and ≥2.0 full.
+
+**Design path (DEV coins, ≤2024):** classic Donchian breakout L/S 0.3–0.9 → long-only 1.18
+(breakdown shorts lose: −0.22) → +BTC regime & vol target 1.37 → combining low-correlation
+setups → 4 setups at equal risk **1.81**.
+
+| Setup | Rule | Holdout coins ≤2024 | All coins 2025-26 |
+|---|---|---|---|
+| A breakout | long 20d-high breakout, coin & BTC trending up, 2ATR stop, 4ATR trail | 1.36 | **0.07** |
+| B ignition | coin/BTC +25% day → long coin/short BTC, 10d | 1.10 | **1.10** |
+| C rel-strength | coin/BTC 20d breakout/breakdown, BTC-hedged | 0.49 | 0.46 |
+| D pullback | uptrend coin drops >1.5ATR in 3d → buy, 5d | 0.98 | **−1.48** |
+| **Book (equal risk)** | | **1.67** | **0.35** |
+
+Full sample 1.59, CAGR 69%, maxDD −31%. Yearly Sharpe: 2020 2.9 · 2021 3.0 · **2022 −0.2** ·
+2023 1.7 · 2024 2.3 · **2025 0.4 · 2026 0.1**. With 2× costs: 1.38 / 0.09. Entering one day late: 1.16 / −0.01.
+
+**Verdict:** the system generalises across coins (holdout coins 1.67) but not across regimes. It is
+a long-biased bull-market system: flat in 2022, dead in 2025-26. It fails the pre-committed bar and
+is **not recommended**. Not re-tuned after seeing the test, since that would only manufacture a
+fake 2.0. The one setup that held up out-of-sample is B ignition, the same effect as the v4
+pump-follow sleeve. The v4 blend (§8) remains the best candidate.
