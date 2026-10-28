@@ -129,3 +129,62 @@ python3 boost.py boost2.py boost3.py boost4.py run_altbars.py improve*.py  # ful
 Code: `data.py engine.py strategies.py lab.py altbars.py funding.py`. `engine.simulate(...,
 funding_matrix=F)` uses real per-coin funding. Outputs in `results/`.
 **Discipline: tune only on data ≤ 2024-12-31 (`lab.IS_END`); add nothing that doesn't beat OOS.**
+
+---
+
+## 8. v4 (2026-10-28): + pump-follow sleeve — Sharpe ~2.0 in backtest, with real caveats
+
+**Thesis:** a coin that beats BTC by >25% in one day keeps drifting up over the next ~5 days,
+because attention, short squeezes and late chasers spread out over days. We trade it by going long
+the pumped coin and short BTC (same notional) on the daily close, holding 5 days. This is
+short-horizon, coin-specific momentum, nearly uncorrelated with v3 (ρ = +0.02).
+
+**Rules:** daily; universe as v3 (crypto only, ≥60d history, ≥$5M 30d median $vol). Trigger
+when the coin's daily return minus BTC's is above +25%. Hold 5 days, size by inverse 20d volatility,
+BTC-hedged, vol-targeted to 40% (cap 3x). Longs in pumped coins pay a **stressed 50%/yr funding**.
+**Blend: 70% v3 + 30% sleeve.**
+
+| (generic funding, 14bps RT) | FULL Sharpe | IS Sharpe | OOS Sharpe | maxDD | CAGR |
+|---|---|---|---|---|---|
+| v3 trend | 1.47 | 1.45 | 1.52 | −33% | 80% |
+| pump-follow sleeve | 1.38 | 1.36 | 1.47 | −39% | 114% |
+| **v4 blend 70/30** | **1.96** | **1.92** | **2.11** | **−28%** | **103%** |
+
+Yearly v4: `2020 +29 · 2021 +185 · 2022 +50 · 2023 +79 · 2024 +156 · 2025 +80 · 2026(5mo) +56%`.
+Monthly: median +4.9%, 61% positive, worst −23%.
+
+**Search log (pre-committed pass bar: IS ≥ 0.8, OOS ≥ 0.5, ρ(v3) < 0.3; `explore_v4.py`):**
+| Idea | IS / OOS Sharpe | Verdict |
+|---|---|---|
+| H1 short new listings (d2–30/60/90, hedged or not) | −0.5…−1.4 / −0.4…−1.3 | reject |
+| H2 fade big pumps | −1.2…−1.9 / −0.5…−1.9 | reject (pumps *continue*) |
+| H3 betting-against-beta | 0.85–1.18 / −0.03…−0.50 | reject (overfit fingerprint) |
+| H2′ follow big pumps (sign flip of H2) | 1.36 / 1.47 | **kept, see caveats** |
+
+**Robustness (`robust_v4.py`):** positive IS & OOS on 29/30 grid cells (thr .15–.35 × hold 2–15d),
+with a plateau at thr .25–.30 × hold 3–10. Survives 30bps/side costs (1.20/1.28) and entering one
+day late (1.28/1.89).
+
+**Caveats, weakest link first:**
+1. **Survivorship bias, which favors this sleeve.** The dataset holds only perps still listed in 2026.
+   Coins that pumped and were later delisted are missing, along with their crashes. Fix before
+   trusting it: backtest on point-in-time data that includes delisted symbols.
+2. **Contaminated OOS.** H2′ is the sign-flip of H2, whose OOS was seen first. The 2.11 OOS is not a
+   clean holdout. Only paper/live trading gives a clean test.
+3. **Lottery profile.** The sleeve wins on 14–29% of days. Dropping its 20 best days takes IS Sharpe
+   to ~0. A dry spell of many months is normal, not proof that it broke.
+4. **Execution.** Entry is at the close of a +25% day, when spreads are widest and funding spikes
+   (stressed at 50%/yr here, but real spikes can run to hundreds of %/yr). Worst sleeve day −23%.
+5. v3 numbers here use generic funding. With real funding v3 was ~0.08 lower (§2).
+
+**Kill switch:** pause the sleeve if its trailing 6-month Sharpe is < −0.5, or if live fills average
+more than 50bps worse than the close. Pause everything at −35% drawdown (above the backtest max).
+
+**Leverage (1yr block bootstrap, IS base):** 1x +5.7%/mo median · 1.5x +8.2% · 2x +10.4% (P lose
+half 1%) · 3x +14% (3%). Bootstrap ruin understates intraday liquidation, so **stay ≤2x**.
+
+```bash
+python3 explore_v4.py      # H1/H2/H3 search (all rejected)
+python3 robust_v4.py       # pump-follow gauntlet
+python3 final_v4.py        # v4 blend tearsheet + leverage table
+```
