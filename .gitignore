@@ -4,3 +4,6 @@ research/results/
 data/funding/
 __pycache__/
 *.pyc
+bot_state/
+bot/config.toml
+bot/.env

@@ -1,0 +1,21 @@
+# systemd unit. Install: copy to /etc/systemd/system/v4bot.service, edit paths/user, then
+#   sudo systemctl daemon-reload && sudo systemctl enable --now v4bot
+# Logs: journalctl -u v4bot -f   (also bot_state/bot.log)
+[Unit]
+Description=v4 Binance futures trading bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=trader
+WorkingDirectory=/opt/binance-futures-klines
+EnvironmentFile=/opt/binance-futures-klines/bot/.env
+# paper:  ExecStart=/usr/bin/python3 -m bot -c bot/config.toml run
+ExecStart=/usr/bin/python3 -m bot -c bot/config.toml --confirm-live run
+Restart=on-failure
+RestartSec=60
+KillSignal=SIGTERM
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

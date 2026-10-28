@@ -1,0 +1,46 @@
+# v4 bot configuration. Copy to bot/config.toml and edit.
+# API keys are NOT read from this file: export BINANCE_API_KEY / BINANCE_API_SECRET.
+
+mode = "paper"              # "paper" (simulated fills on live Binance data) or "live" (real orders)
+state_dir = "bot_state"     # state.json, journal.jsonl, equity.csv, bot.log. One dir per bot/account.
+
+[strategy]                  # defaults reproduce the backtested v4 exactly; change only with new research
+w_trend = 0.70
+w_pump = 0.30
+target_vol = 0.40
+pump_threshold = 0.25
+pump_hold_days = 5
+history_bars = 400
+
+[risk]
+leverage = 1.5              # research: 1.5-2x. Hard limit 5.
+max_gross = 3.0             # cap on total notional / equity
+max_position = 0.50         # cap on one symbol's notional / equity
+max_drawdown = 0.35         # flatten + halt below this drawdown from peak (backtest max ~28%)
+max_cycle_loss = 0.20       # flatten + halt if equity drops this much in one day
+rebalance_band = 0.01       # skip trades smaller than 1% of equity (cuts fee churn)
+stop_loss_pct = 0.0         # optional exchange-side catastrophe stop per position (e.g. 0.30). Not in backtest.
+
+[exchange]
+testnet = false             # true -> https://testnet.binancefuture.com (use testnet keys)
+margin_type = "CROSSED"
+exchange_leverage = 5       # Binance per-symbol leverage setting = margin headroom, not risk
+min_quote_volume_24h = 1000000
+adopt_existing_positions = false   # keep false and use a dedicated sub-account
+
+[paper]
+initial_equity = 10000.0
+fee = 0.0005
+slippage = 0.0002
+data_source = "binance"     # "binance" = live public data (no keys needed), "csv" = repo files (offline)
+csv_dir = "."
+
+[schedule]
+run_minute_utc = 5          # trade at 00:05 UTC, just after the daily close
+retry_minutes = 5
+max_retries = 6
+
+[notify]                    # optional
+webhook_url = ""            # Slack/Discord-style incoming webhook
+telegram_token = ""
+telegram_chat_id = ""
