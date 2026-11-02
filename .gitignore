@@ -7,3 +7,5 @@ __pycache__/
 bot_state/
 bot/config.toml
 bot/.env
+gridbot_state/
+gridbot/config.toml

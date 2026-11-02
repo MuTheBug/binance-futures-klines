@@ -217,3 +217,17 @@ a long-biased bull-market system: flat in 2022, dead in 2025-26. It fails the pr
 is **not recommended**. Not re-tuned after seeing the test, since that would only manufacture a
 fake 2.0. The one setup that held up out-of-sample is B ignition, the same effect as the v4
 pump-follow sleeve. The v4 blend (§8) remains the best candidate.
+
+---
+
+## 10. Grid trading (2026-11-02): full study in `GRID_STRATEGY.md`, bot in `gridbot/`
+
+- **Classic exchange-style grids lose or merely track the market** on this data.
+- **Best design: a neutral grid run only while the daily trend is weak,** with 6σ spacing.
+  - Up to 2024: Sharpe ~1.5 across both design and held-out coins, +8–11%/yr, ~4% drawdown.
+  - 2025–26: flat (Sharpe 0.07).
+  - It **fails the pre-registered out-of-sample bar**.
+  - Its level depends on intrabar ordering that hourly data cannot resolve.
+- **A $100 grid account: roughly ± $10/yr.** Leverage widens outcomes, not the median.
+- **The bot** (`gridbot/`) runs that design in paper or live mode, and matches the research
+  simulator to within 0.02%.

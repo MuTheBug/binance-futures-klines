@@ -149,6 +149,10 @@ class BinanceFuturesClient:
     def premium_index(self):
         return self.request("GET", "/fapi/v1/premiumIndex")
 
+    def ticker_price(self):
+        """Last traded price for every symbol (weight 2)."""
+        return self.request("GET", "/fapi/v1/ticker/price")
+
     def funding_rates(self, symbol: str, start_ms: int, end_ms: int):
         return self.request("GET", "/fapi/v1/fundingRate",
                             {"symbol": symbol, "startTime": start_ms, "endTime": end_ms, "limit": 1000})

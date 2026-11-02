@@ -1,0 +1,54 @@
+# Grid bot configuration. Copy to gridbot/config.toml and edit.
+# API keys are NOT read from this file: export BINANCE_API_KEY / BINANCE_API_SECRET.
+# Defaults = the design that ranked first in research/GRID_STRATEGY.md. It did NOT pass the
+# out-of-sample test there (flat in 2025-26). Read the verdict, then paper trade.
+
+mode = "paper"                 # "paper" (simulated account on live prices) or "live"
+state_dir = "gridbot_state"    # one directory per bot/account
+# Candidate coins. With max_active > 0 the bot rotates: it runs grids only on coins whose daily trend
+# is weak, at most max_active at a time, each sized equity / max_active. Liquid alts only: BTC/ETH
+# need larger minimum orders than a $100 account can split into levels.
+symbols = ["DOGEUSDT", "XRPUSDT", "ADAUSDT", "LINKUSDT", "LTCUSDT", "DOTUSDT", "TRXUSDT", "XLMUSDT"]
+max_active = 2                 # $100 / 2 = $50 per grid (~9 levels a side at >= 5 USDT per order)
+allocation = []                # fixed fractions per symbol instead of rotation (use with max_active = 0)
+poll_seconds = 10
+
+[grid]
+levels = 10                    # per side; reduced automatically if orders would fall below the exchange minimum
+spacing = "vol"                # "vol": g = spacing_k x hourly volatility (7 days) | "fixed": g = spacing_fixed
+spacing_k = 6.0                # 6 x hourly sigma ~ a 36-hour move (best in research; weekly reversal is strongest)
+spacing_fixed = 0.02
+spacing_min = 0.004            # never closer than 0.4% (fees and simulation bias)
+spacing_max = 0.10
+bias = "neutral"               # neutral | long | short | trend
+regime_filter = true           # only run while the daily trend is weak (|strength| < trend_threshold)
+trend_threshold = 0.3
+exit_rule = "stop"             # stop: close and wait cooldown | reset: re-centre | hold: keep the grid
+exit_buffer = 1                # levels beyond the range before the exit rule fires
+cooldown_minutes = 1440
+recenter_hours = 0             # 0 = re-centre only after exits; 720 = monthly
+
+[risk]
+exposure = 1.0                 # largest inventory = 1x the capital given to the symbol (no leverage)
+max_drawdown = 0.25            # flatten + halt below this drawdown from the equity peak
+max_daily_loss = 0.10          # flatten + halt on this loss since 00:00 UTC
+max_resets_per_day = 4         # range exits per symbol per day before a cool-down
+exchange_leverage = 5          # Binance per-symbol setting = margin headroom only, not risk
+margin_type = "CROSSED"
+
+[exchange]
+testnet = false                # true -> Binance futures testnet (testnet keys); override base_url if it moves
+recv_window = 5000
+
+[paper]
+initial_balance = 100.0
+maker_fee = 0.0002
+taker_fee = 0.0005
+slippage = 0.0005
+through = 0.0                  # extra trade-through a paper limit fill needs (0.0005 = conservative)
+csv_dir = "."                  # repo root: hourly CSVs for `replay`
+
+[notify]                       # optional
+webhook_url = ""
+telegram_token = ""
+telegram_chat_id = ""
