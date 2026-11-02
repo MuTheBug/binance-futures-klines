@@ -231,3 +231,30 @@ pump-follow sleeve. The v4 blend (§8) remains the best candidate.
 - **A $100 grid account: roughly ± $10/yr.** Leverage widens outcomes, not the median.
 - **The bot** (`gridbot/`) runs that design in paper or live mode, and matches the research
   simulator to within 0.02%.
+
+---
+
+## 11. Luck benchmark (2026-11-02): what "loop until spectacular" produces (`luck_benchmark.py`)
+
+Same universe, sizing, 40% vol target and costs as the real strategies. IS = 2020-06..2024-12,
+OOS = 2025-01..2026-06. Keep the best in-sample result, then look out of sample:
+
+| Pool | Best IS | Its OOS | Top-10 IS → OOS |
+|---|---|---|---|
+| 1000 **random-noise** signals (zero edge by construction) | Sharpe 1.07, **+51%/yr** | Sharpe −1.09, **−38%/yr** | 0.69 → −1.40 |
+| 1000 random **indicator** rules (momentum, reversal, vol, volume, highs) | Sharpe 1.52, +86%/yr (30d trend) | Sharpe 0.87, +37%/yr | 1.45 → 0.44 |
+
+- **Expected best IS Sharpe from luck alone** with 4.6 years of data:
+
+  | Strategies tried | 10 | 100 | **350** | 1000 |
+  |---|---|---|---|---|
+  | Best Sharpe from luck | 0.73 | 1.18 | **1.37** | 1.52 |
+
+  ~350 is roughly how many strategies this repo has now tested. An in-sample Sharpe below ~1.4 is
+  therefore indistinguishable from luck here; only out-of-sample results carry evidence. The noise
+  pool's best (1.07) sits below the theoretical line because costs give noise strategies a negative
+  average.
+- **The only thing that survived selection is trend/momentum** (v3/v4's engine).
+- **Rule kept:** no more searching until there is new data, either fresh out-of-sample time from
+  paper/live trading or new data types (funding, order book, 1-minute bars). More loops over the
+  same history only buy luck.
