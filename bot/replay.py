@@ -36,6 +36,7 @@ def replay(cfg: Config, start: str, end: str | None = None, data: CsvData | None
     broker = PaperBroker.fresh(cfg.paper.initial_equity, cfg.paper.fee, cfg.paper.slippage)
     days = data.all.close.loc[start:end].index
     eq_rows, n_orders, prev = [], 0, None
+    held_gross, target_gross, n_pos = [], [], []
     for i, d in enumerate(days):
         now = d + pd.Timedelta(days=1, minutes=5)
         bars = data.daily_bars(syms, cfg.strategy.history_bars, now)
@@ -50,6 +51,10 @@ def replay(cfg: Config, start: str, end: str | None = None, data: CsvData | None
         for o in plan.orders:
             broker.execute(o)
         n_orders += len(plan.orders)
+        pos = broker.positions()
+        held_gross.append(sum(abs(q) * prices.get(s, 0.0) for s, q in pos.items()) / max(equity, 1e-9))
+        target_gross.append(float(out.weights.abs().sum()) * cfg.risk.leverage)
+        n_pos.append(len(pos))
         eq_rows.append((d, equity))
         prev = d
         if progress and i % 50 == 0:
@@ -64,4 +69,6 @@ def replay(cfg: Config, start: str, end: str | None = None, data: CsvData | None
     ideal = simulate_net(blend * cfg.risk.leverage, ret).loc[bot_ret.index]
     return {"equity": eq, "bot": _stats(bot_ret), "ideal": _stats(ideal),
             "corr": float(bot_ret.corr(ideal)), "orders": n_orders, "days": len(days),
-            "fees": broker.book["fees"], "final_positions": broker.positions()}
+            "fees": broker.book["fees"], "final_positions": broker.positions(),
+            "avg_positions": float(np.mean(n_pos)) if n_pos else 0.0,
+            "held_vs_target_gross": float(np.sum(held_gross) / max(np.sum(target_gross), 1e-9))}

@@ -123,9 +123,13 @@ class CsvData:
         grid = pd.date_range(full["close"].index[0], full["close"].index[-1], freq="D")
         self.all = Bars(**{k: v.reindex(grid) for k, v in full.items()})
 
+    # Offline minimum order sizes. Most USDT-M perps are 5 USDT; BTC/ETH have been higher (the live
+    # bot always uses the exchange's own filters). Conservative so small-account replays are honest.
+    MIN_NOTIONAL = {"BTCUSDT": 100.0, "ETHUSDT": 20.0}
+
     def filters(self, refresh=False) -> dict[str, SymbolFilters]:
         return {s: SymbolFilters(s, s[:-4], Decimal("0.00000001"), Decimal("0.00000001"),
-                                 Decimal("1e15"), Decimal("0.00000001"), 5.0)
+                                 Decimal("1e15"), Decimal("0.00000001"), self.MIN_NOTIONAL.get(s, 5.0))
                 for s in self.all.close.columns}
 
     def universe(self, must_include=()) -> list[str]:

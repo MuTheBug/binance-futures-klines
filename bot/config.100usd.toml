@@ -1,0 +1,60 @@
+# v4 bot preset for a $100 account. Copy to bot/config.toml (or pass -c bot/config.100usd.toml).
+# API keys are NOT read from this file: export BINANCE_API_KEY / BINANCE_API_SECRET.
+#
+# What was tested (research/v4_100.py, research/STRATEGY.md §12): v4 as-is, run through the real
+# bot pipeline starting from $100 at 1.5x, with Binance minimum order sizes enforced.
+#   - Fresh $100 accounts, 6 months each: median $143 after 6 months in 2020-24 (range $100-$274,
+#     worst drawdown -25%); $120 / $177 / $142 in the 2025-26 windows.
+#   - Concentrated variants (3-5 positions) were NOT better at $100: same or lower Sharpe, deeper
+#     drawdowns. So this preset changes nothing about the strategy itself.
+#   - Orders below Binance's minimum (~5 USDT; BTC is higher) are skipped: about 70-90% of the
+#     target size is actually held. The BTC hedge of the pump sleeve is usually too small to place.
+# These are backtests on data that was also used to design v4 (and miss delisted coins), so real
+# results will very likely be worse. Paper trade first; then go live small, at <= 2x.
+
+mode = "paper"
+state_dir = "bot_state_100"
+
+[strategy]                  # = v4 defaults (k_hold 10, BTC-hedged pump sleeve)
+w_trend = 0.70
+w_pump = 0.30
+target_vol = 0.40
+pump_threshold = 0.25
+pump_hold_days = 5
+history_bars = 400
+k_select = 6
+k_hold = 10
+pump_hedge = "btc"
+
+[risk]
+leverage = 1.5              # tested 1x / 1.5x / 2x: worst 2020-24 drawdown -26% / -34% / -43% (2x trips the halt)
+max_gross = 3.0
+max_position = 0.50
+max_drawdown = 0.35         # flatten + halt; review before `resume`
+max_cycle_loss = 0.20
+rebalance_band = 0.01
+stop_loss_pct = 0.0
+
+[exchange]
+testnet = false
+margin_type = "CROSSED"
+exchange_leverage = 5
+min_quote_volume_24h = 1000000
+adopt_existing_positions = false   # use a dedicated sub-account
+
+[paper]
+initial_equity = 100.0      # paper account starts with $100
+fee = 0.0005
+slippage = 0.0002
+data_source = "binance"
+csv_dir = "."
+
+[schedule]
+run_minute_utc = 5
+retry_minutes = 5
+max_retries = 6
+
+[notify]
+webhook_url = ""
+telegram_token = ""
+telegram_chat_id = ""

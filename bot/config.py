@@ -30,6 +30,9 @@ class StrategyCfg:
     min_dollar_volume: float = 5e6    # trailing-30d median daily $ volume
     history_bars: int = 400           # daily bars fetched per symbol (>= 250 recommended)
     hedge_symbol: str = "BTCUSDT"
+    k_select: int = 6                 # v3: strongest trends picked before smoothing
+    k_hold: int = 10                  # v3: positions held after smoothing (fewer = bigger orders)
+    pump_hedge: str = "btc"           # pump sleeve hedge: "btc" (equal-notional short) | "none"
     exclude: list[str] = field(default_factory=lambda: list(DEFAULT_EXCLUDE))
 
 
@@ -106,6 +109,10 @@ class Config:
             raise ValueError("risk.max_drawdown and risk.max_cycle_loss must be in (0, 1)")
         if not 0 <= r.stop_loss_pct < 1:
             raise ValueError("risk.stop_loss_pct must be in [0, 1)")
+        if not 1 <= s.k_hold <= 30 or not 1 <= s.k_select <= 30:
+            raise ValueError("strategy.k_hold and strategy.k_select must be in 1..30")
+        if s.pump_hedge not in ("btc", "none"):
+            raise ValueError("strategy.pump_hedge must be 'btc' or 'none'")
         if s.history_bars < 200:
             raise ValueError("strategy.history_bars must be >= 200 (indicator warm-up)")
         if self.exchange.margin_type not in ("CROSSED", "ISOLATED"):

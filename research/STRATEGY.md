@@ -258,3 +258,45 @@ OOS = 2025-01..2026-06. Keep the best in-sample result, then look out of sample:
 - **Rule kept:** no more searching until there is new data, either fresh out-of-sample time from
   paper/live trading or new data types (funding, order book, 1-minute bars). More loops over the
   same history only buy luck.
+
+---
+
+## 12. v4 for a $100 account (2026-11-02): `v4_100.py`, preset `bot/config.100usd.toml`
+
+**Question:** v4 holds ~10 positions plus pump longs and a BTC hedge. At $100 many orders are
+below Binance's minimum (~5 USDT; BTC assumed 100, ETH 20). Does the strategy need to be
+concentrated to work at that size?
+
+**Method:** the real bot pipeline (`bot/replay.py`), starting from $100. Nine pre-registered
+variants: hold {3, 4, 5} positions × pump sleeve {BTC-hedged, unhedged, off}. Selection: best
+2020-10..2024 Sharpe with max DD ≥ −40%. References: v4 as-is at $100 and at $10k.
+
+| $100, 1.5x | 2020-10..2024 (compounding) | 2025-01..2026-05 | Fresh $100, 6-month windows: median (2020–24) / 2025–26 windows |
+|---|---|---|---|
+| **v4 as-is (k10)** | Sharpe **2.06**, CAGR 177%, DD −33.9% | Sharpe **2.11**, +272% total, DD −18.2% | **$143** ($100–$274) / $120, $177, $142 |
+| hold 3, BTC-hedged pump (selected by the rule) | 1.90, 157%, −39.9% | 2.08, +261%, −20.8% | $139 ($106–$331) / $88, $248, $158 |
+| hold 4 / 5, BTC-hedged pump | 1.86 / 1.82 | – | $143 / $138 |
+| unhedged pump (3/4/5) | 1.80–1.87, DD −43% … −46% | – | $138–$146 |
+| no pump sleeve (3/4/5) | 1.03–1.05, DD −53% … −62% | – | $119–$120 |
+| v4 as-is at $10,000 | 2.27, 223%, −33.9% | – | – |
+
+**Findings:**
+- **Concentration is not needed, and it hurts.** v4 as-is beat every concentrated variant in-sample,
+  matched the selected one out-of-sample, and had the smoothest fresh-$100 outcomes and the smallest
+  drawdowns. The selected variant trails it by 0.10 Sharpe on fresh $100 windows (below the 0.3 flag
+  threshold), so nothing contradicts the rule's choice, but nothing favours it either. The preset
+  therefore keeps v4 unchanged.
+- **What $100 costs:** 10–30% of target size goes unplaced (small orders and, usually, the BTC hedge
+  leg). Sharpe falls from ~2.27 to ~2.06 versus a $10k account.
+- **Leverage at $100** (v4 as-is):
+
+  | Leverage | 2020–24 Sharpe / CAGR / DD | 2025–26 total / DD |
+  |---|---|---|
+  | 1x | 2.02 / 101% / −26% | +122% / −11% |
+  | 1.5x | 2.06 / 177% / −34% | +272% / −18% |
+  | 2x | 2.13 / 277% / **−43%** | +342% / −27% |
+
+  At 2x the drawdown exceeds the bot's 35% halt. **Use 1–1.5x.**
+- **Caveats** (all from §8 and §11 still apply): the 2025–26 window was used while designing v4;
+  delisted coins are missing (flatters the pump sleeve); ~350 strategies have been tried on this
+  history. Treat these numbers as an upper bound and paper trade first.

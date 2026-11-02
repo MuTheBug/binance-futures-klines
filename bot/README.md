@@ -39,6 +39,41 @@ simulates fills at the mark price, with fees, slippage and the funding actually 
 
 Every command that can trade live requires `--confirm-live`.
 
+## Running with $100
+
+Use the preset `bot/config.100usd.toml`. It is v4 unchanged, with a $100 paper account at 1.5x.
+
+```bash
+python -m bot -c bot/config.100usd.toml targets
+```
+```bash
+python -m bot -c bot/config.100usd.toml run
+```
+
+**What was tested** (`research/v4_100.py`): the real bot pipeline starting from $100. That covers
+the rolling strategy, order planning with Binance minimums (BTC assumed 100 USDT, ETH 20, others
+5), fees, slippage and funding.
+
+| $100 at 1.5x | Result |
+|---|---|
+| Fresh $100 account, 6 months, 8 windows 2020-10 → 2024-10 | median **$143** (range $100–$274), worst drawdown −25% |
+| Fresh $100 account, 2025-01 / 2025-07 / 2026-01 (to May) | **$120 / $177 / $142** |
+| One $100 account compounding 2025-01 → 2026-05 | +272% (Sharpe 2.11, max DD −18%) |
+| Same at 1x / 2x | +122% / +342%, max DD −11% / −27% |
+| 2020-10 → 2024-12 max drawdown at 1x / 1.5x / 2x | −26% / −34% / **−43%** (2x would trip the 35% halt) |
+
+- **Concentrating** into 3–5 positions so orders clear the minimum more easily did **not** help: it
+  gave the same or lower Sharpe with deeper drawdowns. So the preset keeps v4's 10 positions.
+- **Skipped orders:** 10–30% of the target size goes unplaced at $100, including usually the
+  pump sleeve's BTC hedge.
+
+**Why to expect less live:**
+- The 2025–26 window was already used while designing v4, so it is not a clean test.
+- The data misses delisted coins, which flatters the pump sleeve.
+- ~350 strategies have been tried on this history (`research/STRATEGY.md` §11).
+
+Paper trade for 1–2 months and compare with the table before going live, and stay at ≤ 2x.
+
 ## Commands
 
 | Command | What it does |
@@ -114,8 +149,9 @@ formats. Run steps 1–4 of *Testnet, then live* before risking money.
 
 ## Known limitations
 
-- **Small accounts:** Binance's minimum order is ~5 USDT (100 for BTC). With $60 at 1.5x, many
-  positions fall below it and get skipped, so the account won't track the strategy. Use ≥ $1–2k.
+- **Small accounts:** Binance's minimum order is ~5 USDT (more for BTC/ETH). Below it, positions
+  are skipped. At $100 the bot still holds 70–90% of its target size and tracked the strategy in
+  replays (see *Running with $100*), but every skipped order is tracking error.
 - **Daily cadence:** intraday moves are only guarded by the optional exchange stops and by
   liquidation. Cross margin with a 5x exchange setting gives headroom, but a market-wide crash can
   still hit the account before the next cycle.

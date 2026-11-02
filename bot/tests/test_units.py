@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from decimal import Decimal
 
+import numpy as np
 import pandas as pd
 import requests
 
@@ -21,6 +22,15 @@ def filt(sym, step="0.001", min_notional=5.0):
 
 
 class TestConfig(unittest.TestCase):
+    def test_shipped_presets_load(self):
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        ex = load_config(os.path.join(root, "bot", "config.example.toml"), env={})
+        small = load_config(os.path.join(root, "bot", "config.100usd.toml"), env={})
+        self.assertEqual(small.paper.initial_equity, 100.0)
+        self.assertEqual((small.strategy.k_hold, small.strategy.pump_hedge), (10, "btc"))   # v4 unchanged
+        self.assertEqual(small.strategy, ex.strategy)
+        self.assertEqual(small.mode, "paper")
+
     def test_defaults_valid(self):
         cfg = load_config(None, env={})
         self.assertEqual(cfg.mode, "paper")
@@ -196,3 +206,47 @@ class TestClient(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSmallAccountOptions(unittest.TestCase):
+    """k_hold / pump_hedge / w_pump options used by the $100 preset."""
+
+    @classmethod
+    def setUpClass(cls):
+        import os
+        from bot.data import CsvData
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        cls.data = CsvData(root, Config().strategy.exclude)
+
+    def targets(self, day, **kw):
+        from bot.strategy import compute_targets
+        cfg = Config()
+        for k, v in kw.items():
+            setattr(cfg.strategy, k, v)
+        bars = self.data.daily_bars(self.data.universe(), cfg.strategy.history_bars,
+                                    pd.Timestamp(day, tz="UTC") + pd.Timedelta(days=1, minutes=5))
+        return compute_targets(bars.close, bars.volume, cfg.strategy)
+
+    def test_k_hold_limits_trend_positions(self):
+        for k in (3, 4):
+            out = self.targets("2024-03-05", k_hold=k)
+            self.assertLessEqual(len(out.trend), k)
+            self.assertGreater(len(out.trend), 0)
+
+    def test_unhedged_pump_has_no_btc_leg_and_off_means_trend_only(self):
+        hedged = self.targets("2024-03-05")                       # pump sleeve active that day
+        self.assertIn("BTCUSDT", hedged.pump.index)
+        self.assertLess(hedged.pump["BTCUSDT"], 0)
+        unhedged = self.targets("2024-03-05", pump_hedge="none")
+        self.assertNotIn("BTCUSDT", unhedged.pump.index)
+        self.assertTrue((unhedged.pump > 0).all())
+        off = self.targets("2024-03-05", w_trend=1.0, w_pump=0.0)
+        self.assertTrue(np.allclose(off.weights.sort_index(), off.trend.sort_index()))
+
+    def test_config_validation(self):
+        for bad in ({"k_hold": 0}, {"pump_hedge": "eth"}):
+            cfg = Config()
+            for k, v in bad.items():
+                setattr(cfg.strategy, k, v)
+            with self.assertRaises(ValueError):
+                cfg.validate()

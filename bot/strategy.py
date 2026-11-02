@@ -87,17 +87,18 @@ def vol_target(weights, ret, target_vol, max_leverage, funding_matrix=None, look
 
 
 # ----------------------------------------------------------------------------- sleeves
-def trend_weights(close, elig):
+def trend_weights(close, elig, k_select=K_SELECT, k_hold=K_HOLD):
     ret = close.pct_change(fill_method=None)
     sig = strength_signal(close)
     raw = (sig * _inv_vol(ret, 15)).where(elig, 0.0)
-    w6 = concentrate(_normalize(raw), K_SELECT)
-    return concentrate(ema_ensemble(w6), K_HOLD)
+    w6 = concentrate(_normalize(raw), k_select)
+    return concentrate(ema_ensemble(w6), k_hold)
 
 
-def pump_weights(close, elig, hedge, threshold, hold):
+def pump_weights(close, elig, hedge, threshold, hold, hedged=True):
     """Long coins that beat the hedge (BTC) by > threshold in one day, for `hold` days,
-    inverse-vol sized, with an equal-notional short in the hedge. Returns (weights, funding)."""
+    inverse-vol sized, with an equal-notional short in the hedge (unless hedged=False).
+    Returns (weights, funding)."""
     ret = close.pct_change(fill_method=None)
     idio = ret.sub(ret[hedge], axis=0)
     trig = (idio > threshold) & elig
@@ -105,8 +106,9 @@ def pump_weights(close, elig, hedge, threshold, hold):
     vol = ret.rolling(20, min_periods=5).std()
     raw = (1.0 / vol).where(held, 0.0).fillna(0.0)
     w = raw.div(raw.abs().sum(axis=1).replace(0, np.nan), axis=0).fillna(0.0)
-    w[hedge] = w[hedge] - w.sum(axis=1)
-    w = w.div(w.abs().sum(axis=1).replace(0, np.nan), axis=0).fillna(0.0)
+    if hedged:
+        w[hedge] = w[hedge] - w.sum(axis=1)
+        w = w.div(w.abs().sum(axis=1).replace(0, np.nan), axis=0).fillna(0.0)
     generic = FUNDING_ANNUAL / BARS_PER_YEAR
     funding = pd.DataFrame(-generic, index=close.index, columns=close.columns)
     funding = funding.mask(held, PUMP_FUNDING_STRESS / BARS_PER_YEAR)
@@ -134,8 +136,10 @@ def compute_weight_history(close: pd.DataFrame, volume: pd.DataFrame, cfg: Strat
         raise ValueError(f"hedge symbol {cfg.hedge_symbol} missing from data")
     ret = close.pct_change(fill_method=None)
     elig = eligibility(close, volume, cfg.min_history, cfg.min_dollar_volume)
-    wt = vol_target(trend_weights(close, elig), ret, cfg.target_vol, cfg.max_sleeve_leverage)
-    pw, pf = pump_weights(close, elig, cfg.hedge_symbol, cfg.pump_threshold, cfg.pump_hold_days)
+    wt = vol_target(trend_weights(close, elig, cfg.k_select, cfg.k_hold), ret, cfg.target_vol,
+                    cfg.max_sleeve_leverage)
+    pw, pf = pump_weights(close, elig, cfg.hedge_symbol, cfg.pump_threshold, cfg.pump_hold_days,
+                          hedged=cfg.pump_hedge == "btc")
     wp = vol_target(pw, ret, cfg.target_vol, cfg.max_sleeve_leverage, funding_matrix=pf)
     blend = cfg.w_trend * wt + cfg.w_pump * wp
     return blend, wt, wp, elig, pw
