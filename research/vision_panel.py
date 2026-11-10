@@ -127,19 +127,26 @@ def weekend_ratio(ret: pd.DataFrame, window: int = 60) -> pd.DataFrame:
     |return| on Mon-Fri bars over the trailing window. Markets that close on weekends score ~0."""
     a = ret.abs()
     wk = pd.Series(ret.index.dayofweek >= 5, index=ret.index)
-    we = a.where(wk, axis=0).rolling(window, min_periods=30).median()
-    wd = a.where(~wk, axis=0).rolling(window, min_periods=30).median()
+    we = a.where(wk, axis=0).rolling(window, min_periods=8).median()       # >= 4 weekends
+    wd = a.where(~wk, axis=0).rolling(window, min_periods=20).median()     # >= 4 working weeks
     return we / wd.replace(0, np.nan)
 
 
-def crypto_mask(close: pd.DataFrame, weekend_thr: float, vol_floor: float = 0.005) -> pd.DataFrame:
-    """Point-in-time 'is a crypto coin' mask: name list AND not weekend-dead AND not stablecoin-like."""
+NEW_LISTING_CUTOFF = pd.Timestamp("2025-01-01", tz="UTC")   # tokenized TradFi perps did not exist before
+
+
+def crypto_mask(close: pd.DataFrame, weekend_thr: float, vol_floor: float = 0.005,
+                full_close: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Point-in-time 'is a crypto coin' mask: on the name list, not stablecoin-like, and (only for
+    instruments first listed in 2025 or later) not weekend-dead. The weekend rule is not applied
+    to older listings: BTC/ETH/SOL have quiet weekends too and must never be dropped."""
     ret = close.pct_change(fill_method=None)
     by_name = pd.Series([is_crypto_name(c) for c in close.columns], index=close.columns)
-    wr = weekend_ratio(ret)
+    first = (full_close if full_close is not None else close).apply(lambda s: s.first_valid_index())
+    is_new = (first >= NEW_LISTING_CUTOFF).fillna(False).to_numpy()
+    wr_ok = (weekend_ratio(ret) >= weekend_thr) | ~is_new[None, :]
     vol = ret.rolling(30, min_periods=15).std()
-    ok = (wr >= weekend_thr) & (vol >= vol_floor)
-    return ok & by_name.to_numpy()[None, :]
+    return wr_ok & (vol >= vol_floor) & by_name.to_numpy()[None, :]
 
 
 def eligibility(close, quote_volume, crypto, min_history=60, min_qv=5e6, liq_lb=30):

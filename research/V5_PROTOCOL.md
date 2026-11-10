@@ -148,3 +148,19 @@ Notation:
 
 Any deviation from this file, such as a bug found or data unavailable, is appended below with the
 date and reason **before** the affected result is used.
+
+### D1 (2026-11-10, before any strategy result): weekend filter calibrated and narrowed
+
+`v5_classifier.py`, design-window data, name labels only:
+- **Name-labeled TradFi perps** have a median weekend ratio of 0.04–0.32.
+- **Crypto** has a 1% quantile of 0.31 and a median of 0.8.
+- **Three names from the old exclude list look like crypto** on this measure: BILL, CHIP and
+  GENIUS at 0.7–1.25. They stay excluded by name, as pre-registered.
+- **Threshold frozen at 0.35.** On liquid symbol-days it wrongly keeps 12% of TradFi days (mostly
+  gold and oil products, which are excluded by name anyway) and wrongly drops 1.6% of crypto days.
+- **Narrowing:** the weekend rule is applied only to instruments first listed on or after
+  2025-01-01.
+  - Reason: applied to everything, it would drop BTC on 362 liquid days, ETH on 204, and SOL, XRP,
+    ADA and BNB on about 100 each. The majors have quiet weekends too.
+  - No tokenized TradFi perp existed before 2025.
+- **Stablecoin rule:** it flags only USDC, which is already excluded by name.
