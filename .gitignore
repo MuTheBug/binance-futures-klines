@@ -9,3 +9,4 @@ bot/config.toml
 bot/.env
 gridbot_state/
 gridbot/config.toml
+data/vision/
