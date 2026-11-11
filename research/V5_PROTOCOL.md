@@ -381,3 +381,23 @@ the window's market path and v4's results have.
 
 **If it fails:** it is rejected. Threshold, cost, delay and long/short-leg variations are printed
 as diagnostics only and cannot change the verdict.
+
+### E1 result (2026-11-11): **fail, rejected; no fresh run**
+
+| | IS (2020-06 → 2024) | VAL (2025 → 2026-06-07) |
+|---|---|---|
+| Sharpe | **−0.31** | **0.21** |
+| CAGR / max drawdown | −28.8% / −89.8% | −0.5% / −28.9% |
+| Price P&L per year | −0.62 | −1.07 |
+| Funding received per year | +0.61 | +1.50 |
+| Costs per year | −0.16 | −0.34 |
+
+- **Sample:** 16,525 triggered coin-days on 614 coins (9,970 long, 6,555 short). A position was
+  on 78% of days, with 9.6 names on average.
+- **The funding is real and large, and the price takes it back almost exactly.** Extreme funding
+  is the market's fair price for the expected drift against the receiving side. After costs the
+  trade loses.
+- **Diagnostics all agree:** thresholds of 0.15% and 0.60% a day, longs only, shorts only, no
+  hedge, and a one-day delay are all negative in IS. With zero costs it is −0.02 / 0.99. At
+  50 bps a side it is −2.0 / −2.4.
+- **Correlation with v4:** −0.02.

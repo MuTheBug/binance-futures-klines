@@ -385,3 +385,18 @@ the kindest way for the target: stop as soon as the account is up 50%, and also 
 - **The fresh five months (§13) had no edge,** so the "no real edge" rows are the realistic ones.
 - **The bot caps leverage at 5×,** and its 35% drawdown halt would trip long before these bets
   resolve.
+
+
+---
+
+## 15. Extreme-funding harvest (2026-11-11): rejected (`v5_e1.py`, protocol addendum E1)
+
+The one idea left with a structural reason to favor a small account: each day, hold the side that
+*receives* funding in every coin whose funding was extreme (≥ 0.30% a day), BTC-hedged.
+Pre-registered with one specification.
+
+- **Result:** IS Sharpe −0.31, VAL 0.21. It fails.
+- **Why:** funding received was +61%/yr (2020–24) and +150%/yr (2025–26) of exposure. Price moved
+  against the position by −62% and −107%. The market already prices the payment, and costs take
+  the rest.
+- **Every variation is negative too:** threshold, long or short leg only, no hedge, one-day delay.
