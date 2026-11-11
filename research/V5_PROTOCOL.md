@@ -251,3 +251,47 @@ Nothing passed, so only C0 goes to the exam.
   idealized trend and pump parts.
 - Funding events for the current month are not yet in the archive. Days without funding data
   assume zero.
+
+---
+
+## Exam, first run (2026-11-11): FRESH = 2026-06-08 → 2026-11-09, 155 days
+
+Raw output is saved in `V5_FRESH_RESULT_first_run.json`.
+
+| Candidate | Result |
+|---|---|
+| **C0: v4 as shipped, $100, 1.5×** | **$100 → $89.66 (−10.3%), Sharpe −0.25, max DD −26.9%** |
+| C0 at 1.0× | $100 → $94.90 (−5.1%), max DD −18.3% |
+| C0 with $1,000, 1.5× | −14.6%, max DD −28.5% |
+| BTC buy-and-hold | +23.4% |
+| Equal-weight eligible coins | +15.2% |
+| v4 idealized 1× | −9.4% (trend part −20.4%, pump part +12.2%) |
+
+C0 at 1.5× by month: Jun +1.3% · Jul +7.5% · **Aug −22.8%** · Sep +2.0% · Oct +4.3% · Nov +0.4%.
+
+**Pre-committed reading: "Inconclusive: consistent with a weaker edge than the backtest."**
+The result is not below −20% and its Sharpe is not below −1. It is negative.
+
+### D2 (2026-11-11, found after the first run): the archive has no bar for 2026-10-28
+
+**The defect.** `data.binance.vision` has no kline for 2026-10-28, for any symbol, at any interval.
+The monthly October file has 30 rows and the daily files return 404. The exchange did trade:
+BTC's close on the 27th and open on the 29th are continuous with the mark-price bar for the 28th.
+It is the only market-wide hole in the whole panel, so the design-window results (Parts A and B)
+are unaffected.
+
+**Effect on the first run:**
+- The harness saw "no price" for every position on the 28th and settled the whole book at the
+  27th's close. Those are the "18 settled" positions.
+- The strategy's rule of 60 consecutive daily bars then made every coin ineligible, so the
+  account sat flat from 10-28 to 11-09.
+- A live bot would not have seen this, because the exchange API has the bar.
+
+**Repair, fixed here before re-running:**
+- Binance's own daily **mark-price** kline for 2026-10-28 (which the archive does have) supplies
+  open, high, low and close for each symbol.
+- Volume fields are the mean of the two adjacent days. They only feed a 30-day median.
+- Nothing about the strategy, the config or the harness logic changes.
+
+**Reporting.** Both runs are reported. The repaired run is the better measure of what the bot
+would have done. The first run stays on record above.
