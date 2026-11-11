@@ -360,3 +360,28 @@ Full record: `V5_PROTOCOL.md`, pre-registered and committed before any result. C
   historical data, nothing on the first five unseen months.
 - Default leverage is lowered to 1×.
 - The next evidence can only come from more unseen time, i.e. paper trading.
+
+---
+
+## 14. "$100 → $150 a month" (2026-11-11): the odds, not a strategy (`target50.py`)
+
++50% a month is about 130× a year. Nothing in this repo has an edge of that size: v4 on complete
+data has a median 30-day return of +3.9% at 1×, and 0.1% of its 30-day windows reached +50%. The
+only way to make +50% likely is leverage. Every 30-day window from 2020-06 to 2026-11-09 was played
+the kindest way for the target: stop as soon as the account is up 50%, and also stop at −50%.
+
+| Approach | Reached +50% | Lost half or more first | +50% twelve months running |
+|---|---|---|---|
+| v4 at 1× | 0.2% | 0% | never |
+| v4 at 3×, backtest edge real | 23% | 0.6% | 1 in 45 million |
+| v4 at 5×, backtest edge real | 42% | 8% | 1 in 37,000 |
+| v4 at 5×, no real edge | 26% | 20% | 1 in 11 million |
+| v4 at 12×, backtest edge real | 58% | 37% | 1 in 700 |
+| v4 at 12×, no real edge | 41% | 53% | 1 in 40,000 |
+| BTC at 10×, random direction | 49% | 50% | 1 in 5,000 |
+
+- **A leveraged bet can reach +50% in a given month about as often as it loses half.** It cannot
+  do it month after month.
+- **The fresh five months (§13) had no edge,** so the "no real edge" rows are the realistic ones.
+- **The bot caps leverage at 5×,** and its 35% drawdown halt would trip long before these bets
+  resolve.
