@@ -193,25 +193,33 @@ def metrics_day(sym, day):
     if c is None:
         return None
     try:
-        m = read_zip_csv(c)
-        v = m[MCOLS].apply(pd.to_numeric, errors="coerce")
-        last = v.ffill().iloc[-1]
-        mean = v.mean()
-        return (sym, day, len(m), *last.to_list(), *mean.to_list())
-    except Exception as e:                                  # malformed file: skip, keep going
+        z = zipfile.ZipFile(io.BytesIO(c))
+        lines = z.read(z.namelist()[0]).decode().splitlines()[1:]
+        try:                                                # fast path: plain numeric rows
+            a = np.array([ln.split(",")[2:8] for ln in lines if ln], dtype="float64")
+        except ValueError:                                  # blanks in a row: let pandas coerce
+            m = read_zip_csv(c)
+            a = m[MCOLS].apply(pd.to_numeric, errors="coerce").to_numpy("float64")
+        if len(a) == 0:
+            return (sym, day, 0, *([np.nan] * 12))
+        last = pd.DataFrame(a).ffill().iloc[-1].to_numpy()
+        return (sym, day, len(a), *last.tolist(), *np.nanmean(a, axis=0).tolist())
+    except Exception:                                       # malformed file: skip, keep going
         return (sym, day, -1, *([np.nan] * 12))
 
 
-def cmd_metrics():
+def cmd_metrics(shard=0, nshard=1):
     plan = pd.read_csv(os.path.join(OUT, "metrics_plan.csv"), dtype=str)
     out_dir = os.path.join(OUT, "metrics")
     os.makedirs(out_dir, exist_ok=True)
     cols = ["symbol", "day", "rows"] + [f"{c}_last" for c in MCOLS] + [f"{c}_mean" for c in MCOLS]
-    for sym, g in plan.groupby("symbol", sort=True):
+    for i, (sym, g) in enumerate(plan.groupby("symbol", sort=True)):
+        if i % nshard != shard:
+            continue
         path = os.path.join(out_dir, f"{sym}.parquet")
         if os.path.exists(path):
             continue
-        rows = pmap(lambda d: metrics_day(sym, d), g.day.tolist(), workers=48)
+        rows = pmap(lambda d: metrics_day(sym, d), g.day.tolist(), workers=32)
         rows = [r for r in rows if r is not None]
         df = pd.DataFrame(rows, columns=cols).sort_values("day") if rows else pd.DataFrame(columns=cols)
         df.to_parquet(path, index=False)
@@ -227,4 +235,4 @@ if __name__ == "__main__":
     elif cmd == "funding":
         cmd_funding()
     elif cmd == "metrics":
-        cmd_metrics()
+        cmd_metrics(*(int(x) for x in sys.argv[2:4]))

@@ -156,7 +156,34 @@ def eligibility(close, quote_volume, crypto, min_history=60, min_qv=5e6, liq_lb=
     return has & hist_ok & (liq >= min_qv) & crypto
 
 
+def write_metrics_plan(weekend_thr: float, warmup_days: int = 35):
+    """Symbol-days to download positioning metrics for: from 35 days before an instrument first
+    becomes eligible to its last eligible day. Mechanical; uses the full date range."""
+    c, qv = load("close", fresh=True), load("quote_volume", fresh=True)
+    e = eligibility(c, qv, crypto_mask(c, weekend_thr))
+    files = {base_name(os.path.basename(p)[:-8]): os.path.basename(p)[:-8]
+             for p in glob.glob(os.path.join(VIS, "klines_1d", "*.parquet"))}
+    rows = []
+    for col in e.columns[e.any()]:
+        days = e.index[e[col]]
+        lo = max(days[0] - pd.Timedelta(days=warmup_days), pd.Timestamp("2020-09-01", tz="UTC"))
+        for d in pd.date_range(lo, days[-1], freq="D"):
+            rows.append((files[col], str(d.date())))
+    pd.DataFrame(rows, columns=["symbol", "day"]).to_csv(os.path.join(VIS, "metrics_plan.csv"), index=False)
+    return len(rows), int(e.any().sum())
+
+
 if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "plan":
+        from v5_lib import WEEKEND_THR
+        n, k = write_metrics_plan(WEEKEND_THR)
+        print(f"metrics plan: {n} symbol-days for {k} instruments")
+        sys.exit(0)
+    if len(sys.argv) > 1 and sys.argv[1] == "metrics":
+        g = load("close", fresh=True).index
+        build_metrics(g); print("metrics matrices built")
+        sys.exit(0)
     grid, n = build_panel()
     print(f"panel: {n} instruments, {grid[0].date()} .. (last date not printed: blind)")
     if glob.glob(os.path.join(VIS, "funding", "*.parquet")):
