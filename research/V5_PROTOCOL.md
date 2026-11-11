@@ -343,3 +343,41 @@ backtest; paper trade."** Neither run is a red flag (below −20%, or Sharpe bel
 - **Post-exam risk decision** (a risk reduction, not a performance claim): default leverage in the
   bot and the $100 preset goes from 1.5× to 1.0×.
 - **No strategy change ships.** v5 = v4, per the ship rule.
+
+---
+
+## Addendum E1 (2026-11-11): extreme-funding harvest, pre-registered before any result
+
+**Why one more test.** Funding data is new to this repo. Part B used it only as a veto on the
+trend book (B5). A direct funding-harvest strategy has not been tested on the complete universe.
+It is the one idea left with a structural reason to favor a *small* account.
+
+**Thesis.** A perpetual's funding rate becomes extreme only where arbitrage is blocked: the coin
+cannot be borrowed to short, or capacity is too small for funds to bother. Whoever takes the
+receiving side is paid for that. I expect the payment to exceed the price drift against the
+position, and I capture it by holding the receiving side each day the funding is extreme, hedged
+with BTC.
+
+**Specification** (one, fixed now):
+- **Universe:** crypto perps by the same hygiene rules, ≥ 30 daily bars, trailing-30-day median
+  quote volume ≥ $1M. A $100 account can trade these.
+- **Trigger at the close of day t:** |funding of day t| ≥ 0.30% per day (about 110%/yr, ten times
+  the usual rate). Funding of day t means the events in (t 00:00, t+1 00:00].
+- **Position for day t+1:** long if that funding is negative (longs are paid), short if positive.
+  It is re-decided every day.
+- **Sizing:** weights ∝ 1/σ(20d), gross 1 across triggered coins, each name capped at 25% (no
+  renormalization, so fewer than four names means less exposure). A BTC position offsets the net
+  dollar exposure.
+- **Risk scaling:** 40% volatility target, cap 3×, as for every sleeve.
+- **Costs:** 20 bps per side for coins under $5M median volume, 7 bps otherwise.
+- **Funding:** real, since this is the strategy's income.
+- **Periods:** IS 2020-06-01 → 2024-12-31; VAL 2025-01-01 → 2026-06-07.
+
+**Pass bar:** IS Sharpe ≥ 1.0 **and** VAL Sharpe ≥ 0.7.
+
+**If it passes:** one run on 2026-06-08 → 2026-10-31 (real funding data ends there), read with
+the protocol's rule. This strategy's signals and outcomes in that window have not been looked at;
+the window's market path and v4's results have.
+
+**If it fails:** it is rejected. Threshold, cost, delay and long/short-leg variations are printed
+as diagnostics only and cannot change the verdict.
