@@ -226,8 +226,32 @@ def cmd_metrics(shard=0, nshard=1):
         print(f"metrics {sym}: {len(df)}/{len(g)} days", flush=True)
 
 
+# ------------------------------------------------------------------------- archive-hole repair
+def cmd_markprice_day(day: str):
+    """Daily MARK-PRICE kline of one day for every symbol. Used to rebuild a day the kline archive
+    lacks (2026-10-28 is missing there for all symbols and intervals; see V5_PROTOCOL.md D2)."""
+    df = perp_symbols()
+
+    def one(row):
+        sym = row.symbol
+        c = get(f"{BASE}{UM}daily/markPriceKlines/{sym}/1d/{sym}-1d-{day}.zip")
+        if c is None:
+            return None
+        k = read_zip_csv(c, KCOLS)
+        if len(k) == 0:
+            return None
+        r = k.iloc[-1]
+        return (sym, float(r["open"]), float(r["high"]), float(r["low"]), float(r["close"]))
+    rows = [r for r in pmap(one, list(df.itertuples()), workers=32, label="markprice") if r]
+    out = pd.DataFrame(rows, columns=["symbol", "open", "high", "low", "close"])
+    out.to_parquet(os.path.join(OUT, f"repair_markprice_{day}.parquet"), index=False)
+    print(f"mark-price bars for {day}: {len(out)} symbols")
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1]
+    if cmd == "markprice-day":
+        cmd_markprice_day(sys.argv[2]); sys.exit(0)
     if cmd == "symbols":
         cmd_symbols()
     elif cmd == "klines":

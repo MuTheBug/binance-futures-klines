@@ -1,16 +1,13 @@
 # v4 bot preset for a $100 account. Copy to bot/config.toml (or pass -c bot/config.100usd.toml).
 # API keys are NOT read from this file: export BINANCE_API_KEY / BINANCE_API_SECRET.
 #
-# What was tested (research/v4_100.py, research/STRATEGY.md §12): v4 as-is, run through the real
-# bot pipeline starting from $100 at 1.5x, with Binance minimum order sizes enforced.
-#   - Fresh $100 accounts, 6 months each: median $143 after 6 months in 2020-24 (range $100-$274,
-#     worst drawdown -25%); $120 / $177 / $142 in the 2025-26 windows.
-#   - Concentrated variants (3-5 positions) were NOT better at $100: same or lower Sharpe, deeper
-#     drawdowns. So this preset changes nothing about the strategy itself.
-#   - Orders below Binance's minimum (~5 USDT; BTC is higher) are skipped: about 70-90% of the
-#     target size is actually held. The BTC hedge of the pump sleeve is usually too small to place.
-# These are backtests on data that was also used to design v4 (and miss delisted coins), so real
-# results will very likely be worse. Paper trade first; then go live small, at <= 2x.
+# What the evidence says (research/V5_PROTOCOL.md): v4 through the real bot pipeline from $100, on
+# Binance's complete market with real funding and minimum order sizes.
+#   - Fresh data never used in design (2026-06-08 -> 2026-11-09): $100 -> $100.16 at 1.5x with a
+#     -27% drawdown; $101.07 at 1.0x with -18%. BTC rose 19% over the same months.
+#   - Backtest Sharpe on complete data: 1.68 (2020-24), 2.46 (2025 - mid-2026); fresh months: 0.27.
+#   - At $100, about 25-40% of the target size is skipped (orders below Binance's ~5 USDT minimum).
+# The true edge is uncertain and probably well below the backtest. Paper trade.
 
 mode = "paper"
 state_dir = "bot_state_100"
@@ -27,7 +24,7 @@ k_hold = 10
 pump_hedge = "btc"
 
 [risk]
-leverage = 1.5              # tested 1x / 1.5x / 2x: worst 2020-24 drawdown -26% / -34% / -43% (2x trips the halt)
+leverage = 1.0              # lowered from 1.5 after the fresh-data test: drawdown -27% at 1.5x, -18% at 1x
 max_gross = 3.0
 max_position = 0.50
 max_drawdown = 0.35         # flatten + halt; review before `resume`

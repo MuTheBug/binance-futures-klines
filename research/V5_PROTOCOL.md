@@ -295,3 +295,51 @@ are unaffected.
 
 **Reporting.** Both runs are reported. The repaired run is the better measure of what the bot
 would have done. The first run stays on record above.
+
+## Exam, repaired data (2026-11-11): same candidates, the 2026-10-28 hole filled per D2
+
+Raw output is saved in `V5_FRESH_RESULT_repaired.json`.
+
+**The repair.** 750 symbol-days were rebuilt from mark-price bars. Checked against traded prices,
+the repaired close versus the next day's open differs by 0.02% at the median and 0.39% at most.
+
+| Candidate | First run (with hole) | **Repaired data** |
+|---|---|---|
+| **C0: v4 as shipped, $100, 1.5×** | $89.66 (−10.3%), Sharpe −0.25, DD −26.9% | **$100.16 (+0.2%), Sharpe 0.27, DD −26.9%** |
+| C0 at 1.0× | $94.90 (−5.1%), DD −18.3% | $101.07 (+1.1%), DD −18.3% |
+| C0 with $1,000, 1.5× | −14.6% | −6.5%, DD −28.5% |
+| BTC buy-and-hold | +23.4% | +19.0% |
+| Equal-weight eligible coins | +15.2% | +1.6% |
+| v4 idealized 1× | −9.4% | −3.8% (trend part −12.5%, pump part +9.5%) |
+
+C0 at 1.5× by month, repaired: Jun +1.3% · Jul +7.5% · **Aug −22.8%** · Sep +2.0% · Oct +7.2% ·
+Nov (9 days) +9.1%.
+
+**Pre-committed reading, both runs: "Inconclusive: consistent with a weaker edge than the
+backtest; paper trade."** Neither run is a red flag (below −20%, or Sharpe below −1). Neither is
+"consistent with the backtest" (Sharpe above 1 and positive).
+
+### Post-exam diagnostics (`v5_fresh_diag.py`; explanation only, nothing re-tuned)
+
+- **Against the backtest's own history:** in the design window, the idealized v4 had a median
+  155-day return of +26%, and only 10% of such windows were negative. FRESH (−3.8%) sits at the
+  7th percentile. The trend part (−12.5%) sits at the 3rd.
+- **Where the loss came from:** the trend book's shorts.
+  - It was net short alts in June–August (net exposure −0.8 to −1.1).
+  - BTC rose 25% in August. On 19–21 August alone the book lost 11%, 9% and 8% at 1×.
+  - It then turned long in September and lost again on 26–27 October.
+- **The pump part's +9.5%** is mostly one coin (Q).
+- **The $100 account did better than the $1,000 one.** Orders it had to skip happened to avoid
+  losses. That is luck, not a feature.
+- **Funding:** real funding data ends 2026-10-31. November days assume zero.
+
+### What this means
+
+- **v4 is not validated.** On the only data it had never seen, it made nothing in five months
+  while the market rose, with a 27% drawdown on the way.
+- **v4 is not refuted either.** Five months has a Sharpe standard error of about 1.5, and trend
+  strategies have had stretches like this before (2023 Sharpe 0.33).
+- **Honest expectation:** an edge well below the backtest's 1.7–2.5, possibly none.
+- **Post-exam risk decision** (a risk reduction, not a performance claim): default leverage in the
+  bot and the $100 preset goes from 1.5× to 1.0×.
+- **No strategy change ships.** v5 = v4, per the ship rule.

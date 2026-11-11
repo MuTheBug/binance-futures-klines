@@ -76,11 +76,37 @@ def build_panel():
     first = min(s.index.min() for s in frames["close"].values())
     last = max(s.index.max() for s in frames["close"].values())
     grid = pd.date_range(max(first, PANEL_START), last, freq="D")
+    traded = pd.DataFrame(frames["volume"]).reindex(grid) > 0
+    mats = {f: pd.DataFrame(frames[f]).reindex(grid).where(traded) for f in FIELDS}
+    n_fixed = apply_repairs(mats)
     for f in FIELDS:
-        df = pd.DataFrame(frames[f]).reindex(grid)
-        df = df.where(pd.DataFrame(frames["volume"]).reindex(grid) > 0) if f != "volume" else df.where(df > 0)
-        df.to_parquet(os.path.join(PANEL, f"{f}.parquet"))
+        mats[f].to_parquet(os.path.join(PANEL, f"{f}.parquet"))
+    if n_fixed:
+        print(f"archive-hole repair: {n_fixed} symbol-days rebuilt from mark-price bars")
     return grid, len(frames["close"])
+
+
+def apply_repairs(mats: dict) -> int:
+    """Rebuild days the kline archive lacks from Binance's daily mark-price bars
+    (data/vision/repair_markprice_<day>.parquet; see V5_PROTOCOL.md D2). Only fills a symbol whose
+    bar is missing that day and present the day before. Volume fields = mean of adjacent days."""
+    n = 0
+    for path in sorted(glob.glob(os.path.join(VIS, "repair_markprice_*.parquet"))):
+        day = pd.Timestamp(os.path.basename(path)[len("repair_markprice_"):-8], tz="UTC")
+        if day not in mats["close"].index:
+            continue
+        mp = pd.read_parquet(path)
+        mp.index = [base_name(x) for x in mp.symbol]
+        prev, nxt = day - pd.Timedelta(days=1), day + pd.Timedelta(days=1)
+        c = mats["close"]
+        cols = [k for k in mp.index if k in c.columns and pd.isna(c.at[day, k]) and pd.notna(c.at[prev, k])]
+        for f in ("open", "high", "low", "close"):
+            mats[f].loc[day, cols] = mp.loc[cols, f].to_numpy("float64")
+        for f in ("volume", "quote_volume", "taker_buy_quote_volume", "count"):
+            adj = mats[f].loc[[prev, nxt], cols] if nxt in mats[f].index else mats[f].loc[[prev], cols]
+            mats[f].loc[day, cols] = adj.mean(axis=0).to_numpy("float64")
+        n += len(cols)
+    return n
 
 
 def build_funding(grid):

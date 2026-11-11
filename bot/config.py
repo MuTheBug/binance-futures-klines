@@ -59,7 +59,7 @@ class StrategyCfg:
 
 @dataclass
 class RiskCfg:
-    leverage: float = 1.5             # multiplies strategy weights (research: stay <= 2)
+    leverage: float = 1.0             # multiplies strategy weights (lowered from 1.5 after the fresh-data test)
     max_gross: float = 3.0            # hard cap on sum |notional| / equity
     max_position: float = 0.50        # hard cap on one symbol's |notional| / equity
     max_drawdown: float = 0.35        # flatten + halt when equity falls this far below its peak

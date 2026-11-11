@@ -91,11 +91,15 @@ if __name__ == "__main__":
         frozen["frozen_at"] = pd.Timestamp.now(tz="UTC").isoformat()
         json.dump(frozen, open(FROZEN, "w"), indent=2)
         print(json.dumps(frozen, indent=2))
-    elif cmd == "fresh":
+    elif cmd in ("fresh", "fresh-repaired"):
         if not os.path.exists(FROZEN):
             sys.exit("refusing: candidates are not frozen (results/v5_frozen.json missing)")
+        if cmd == "fresh-repaired":      # deviation D2: same candidates, archive hole of 2026-10-28 repaired
+            if not os.path.exists(RESULT):
+                sys.exit("refusing: run the exam first")
+            RESULT = RESULT.replace(".json", "_repaired.json")
         if os.path.exists(RESULT):
-            sys.exit("refusing: the FRESH exam has already been run (results/v5_fresh_result.json exists)")
+            sys.exit(f"refusing: this run already exists ({os.path.basename(RESULT)})")
         frozen = json.load(open(FROZEN))
         end = str(vp.load("close", fresh=True)["BTC"].dropna().index[-1].date())
         print(f"FRESH exam {FRESH_START}..{end}; frozen candidates: {frozen['candidates']}")

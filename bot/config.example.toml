@@ -13,7 +13,7 @@ pump_hold_days = 5
 history_bars = 400
 
 [risk]
-leverage = 1.5              # research: 1.5-2x. Hard limit 5.
+leverage = 1.0              # lowered from 1.5 after the fresh-data test (V5_PROTOCOL.md). Hard limit 5.
 max_gross = 3.0             # cap on total notional / equity
 max_position = 0.50         # cap on one symbol's notional / equity
 max_drawdown = 0.35         # flatten + halt below this drawdown from peak (backtest max ~28%)

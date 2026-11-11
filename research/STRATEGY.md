@@ -1,5 +1,9 @@
 # Crypto Trend Strategy — Research Log & Continuation Doc
 
+> **Read §13 first (2026-11-11).** Sections 1–12 were built on a 124-coin dataset ending June 2026.
+> On Binance's complete history the pump-follow sleeve mostly disappears, and on five fresh months
+> v4 was flat while BTC rose 19%. The performance numbers in §2, §8 and §12 are superseded.
+
 **Goals as stated:** (1) $60 → +40%/month; (2) push Sharpe to 2.0.
 **Honest verdict:**
 - 40%/month is mathematically impossible (§5).
@@ -300,3 +304,59 @@ variants: hold {3, 4, 5} positions × pump sleeve {BTC-hedged, unhedged, off}. S
 - **Caveats** (all from §8 and §11 still apply): the 2025–26 window was used while designing v4;
   delisted coins are missing (flatters the pump sleeve); ~350 strategies have been tried on this
   history. Treat these numbers as an upper bound and paper trade first.
+
+
+---
+
+## 13. v5 study (2026-11-11): complete data, eight new ideas, and the first clean test
+
+Full record: `V5_PROTOCOL.md`, pre-registered and committed before any result. Code:
+`fetch_vision.py`, `vision_panel.py`, `v5_lib.py`, `v5_audit.py`, `v5_hypotheses.py`,
+`v5_exam.py`, `v5_fresh_diag.py`.
+
+**New data** (from `data.binance.vision`):
+- 941 USDT-perp histories. 755 are active in the design window, including 149 that were delisted.
+- Real funding for 99.7% of eligible coin-days.
+- 5-minute positioning data: open interest, long/short ratios and taker flow.
+- Five months nothing here had seen: 2026-06-08 → 2026-11-09.
+
+**1. The old numbers, re-measured** (Sharpe, 2020–24 / 2025–mid-2026):
+
+| | Old 124 coins, assumed funding | **All coins, real funding** |
+|---|---|---|
+| v3 trend | 1.45 / 1.52 | **1.67 / 2.13** |
+| Pump-follow | 1.36 / 1.47 | **0.60 / 1.09** |
+| v4 blend | 1.92 / 2.11 | **1.68 / 2.46** |
+
+- **Pump-follow was mostly survivorship and selection bias**, as §8 feared. On complete data its
+  max drawdown is −72%.
+- **The trend book improved with breadth.** It survives 30 bps costs (1.32 / 1.73) and a 2-day
+  entry delay (1.41 / 2.16). It also leans on a few huge days: without its 20 best it is
+  1.03 / 1.19.
+
+**2. Eight new pre-registered ideas: all failed.**
+- Four from positioning data: retail contrarian, follow top traders, their difference, and
+  OI-confirmed moves.
+- Four others: funding veto, small caps, new-listing shorts, and taker flow.
+- The positioning signals lose in either direction after costs.
+
+**3. The clean test of v4** (real bot pipeline, $100, 1.5×, 2026-06-08 → 2026-11-09):
+
+| | Result |
+|---|---|
+| v4, $100, 1.5× | **$100 → $100.16**, max DD −26.9% (August −22.8%) |
+| v4, $100, 1.0× | $100 → $101.07, max DD −18.3% |
+| BTC buy-and-hold | +19.0% |
+| v4 idealized 1× | −3.8% (7th percentile of the backtest's own 5-month windows) |
+
+- **The archive hole.** Binance's archive lacks 2026-10-28. With that hole unrepaired the run
+  showed $89.66. Both runs are in the protocol.
+- **Verdict by the pre-committed rule: inconclusive**, consistent with a weaker edge than the
+  backtest.
+
+**Bottom line.**
+- No "highly profitable" strategy was found.
+- The one real effect here is trend-following, and its edge is uncertain: good on complete
+  historical data, nothing on the first five unseen months.
+- Default leverage is lowered to 1×.
+- The next evidence can only come from more unseen time, i.e. paper trading.

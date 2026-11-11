@@ -4,10 +4,12 @@ This bot trades the **v4 strategy** from `research/STRATEGY.md` §8: 70% risk-ad
 (v3) plus 30% BTC-hedged pump-follow sleeve. It trades once a day, a few minutes after the
 00:00 UTC daily close.
 
-> **Read this first.** The backtest Sharpe (~2.0) is inflated by survivorship bias and a
-> contaminated out-of-sample window (§8 caveats). Expect live results to be worse. Paper trade for
-> 1–2 months, then start live small on a **dedicated sub-account** at ≤ 2× leverage. Nothing here
-> is financial advice, and you can lose everything you put in.
+> **Read this first.** On the only data this strategy had never seen (June–November 2026) it made
+> nothing: **$100 → $100 at 1.5× leverage, with a −27% drawdown on the way, while BTC rose 19%.**
+> Its backtest on Binance's complete history is good (Sharpe 1.7–2.5), so the true edge is
+> uncertain and probably well below the backtest (`research/V5_PROTOCOL.md`). Paper trade. Do not
+> go live on the strength of the backtest. Nothing here is financial advice, and you can lose
+> everything you put in.
 
 ## Quick start
 
@@ -41,7 +43,8 @@ Every command that can trade live requires `--confirm-live`.
 
 ## Running with $100
 
-Use the preset `bot/config.100usd.toml`. It is v4 unchanged, with a $100 paper account at 1.5x.
+Use the preset `bot/config.100usd.toml`. It is v4 unchanged, with a $100 paper account at **1.0×**
+leverage (lowered from 1.5× after the fresh-data test).
 
 ```bash
 python -m bot -c bot/config.100usd.toml targets
@@ -50,29 +53,28 @@ python -m bot -c bot/config.100usd.toml targets
 python -m bot -c bot/config.100usd.toml run
 ```
 
-**What was tested** (`research/v4_100.py`): the real bot pipeline starting from $100. That covers
-the rolling strategy, order planning with Binance minimums (BTC assumed 100 USDT, ETH 20, others
-5), fees, slippage and funding.
+**What the evidence says** (`research/V5_PROTOCOL.md`). Every row is the real bot pipeline starting
+from $100, on Binance's complete USDT-perp history (every contract ever listed, including delisted
+ones), with real funding and Binance minimum order sizes:
 
-| $100 at 1.5x | Result |
+| Test | Result |
 |---|---|
-| Fresh $100 account, 6 months, 8 windows 2020-10 → 2024-10 | median **$143** (range $100–$274), worst drawdown −25% |
-| Fresh $100 account, 2025-01 / 2025-07 / 2026-01 (to May) | **$120 / $177 / $142** |
-| One $100 account compounding 2025-01 → 2026-05 | +272% (Sharpe 2.11, max DD −18%) |
-| Same at 1x / 2x | +122% / +342%, max DD −11% / −27% |
-| 2020-10 → 2024-12 max drawdown at 1x / 1.5x / 2x | −26% / −34% / **−43%** (2x would trip the 35% halt) |
+| **Fresh data, never used in design: 2026-06-08 → 2026-11-09, 1.5×** | **$100 → $100.16**, worst drawdown −27% (August −23%) |
+| Same, 1.0× | $100 → $101.07, worst drawdown −18% |
+| BTC buy-and-hold over the same months | +19% |
+| Design-period check, 2025-01 → 2026-06-07, 1.5× (data the strategy was built on) | $100 → $471, worst drawdown −19% |
 
-- **Concentrating** into 3–5 positions so orders clear the minimum more easily did **not** help: it
-  gave the same or lower Sharpe with deeper drawdowns. So the preset keeps v4's 10 positions.
-- **Skipped orders:** 10–30% of the target size goes unplaced at $100, including usually the
-  pump sleeve's BTC hedge.
-
-**Why to expect less live:**
-- The 2025–26 window was already used while designing v4, so it is not a clean test.
-- The data misses delisted coins, which flatters the pump sleeve.
-- ~350 strategies have been tried on this history (`research/STRATEGY.md` §11).
-
-Paper trade for 1–2 months and compare with the table before going live, and stay at ≤ 2x.
+- **Backtest Sharpe on the complete market:** 1.68 (2020–24) and 2.46 (2025 – mid-2026).
+  **On the fresh five months: 0.27.**
+- **How unusual the fresh result is:** it sits in the worst 7% of the backtest's own five-month
+  stretches. It was either a bad stretch for trend-following (the book was short when the market
+  reversed in August) or the real edge is smaller than the backtest. Five months cannot tell which.
+- **The pump-follow part was mostly an artifact.** On complete data its standalone Sharpe is 0.60,
+  not 1.36. The old data was missing the coins that pumped and later died.
+- **Withdrawn numbers:** earlier versions of this section quoted "$143 median after six months".
+  That came from the incomplete 124-coin data.
+- **Skipped orders:** at $100, about 25–40% of the target size is skipped because orders fall
+  below Binance's minimum.
 
 ## Commands
 
@@ -112,7 +114,7 @@ Paper trade for 1–2 months and compare with the table before going live, and s
 
 | Setting | Default | Notes |
 |---|---|---|
-| `risk.leverage` | 1.5 | Hard limit 5. Research: growth-optimal ~2–4x *if* the backtest edge is real; ruin risk beyond ~6x |
+| `risk.leverage` | 1.0 | Hard limit 5. Lowered from 1.5 after the fresh-data test (−27% drawdown at 1.5×, −18% at 1×) |
 | `risk.max_gross` | 3.0 | Total notional / equity cap |
 | `risk.max_position` | 0.50 | One symbol. Inverse-vol sizing sometimes wants more (e.g. TRX); this clips it |
 | `risk.max_drawdown` | 0.35 | Flatten + halt. Backtest max DD was ~28% |
@@ -128,7 +130,7 @@ Other safeguards:
 ## Verification done
 
 ```bash
-python3 -m unittest discover -s bot/tests -t .     # 24 tests
+python3 -m unittest discover -s bot/tests -t .     # 28 tests
 python -m bot replay --start 2025-01-01             # full pipeline vs idealized backtest
 ```
 
@@ -140,18 +142,25 @@ python -m bot replay --start 2025-01-01             # full pipeline vs idealized
   positions tracked): paper and live cycles, restarts, funding, stale-data refusal, STOP file,
   drawdown halt + flatten, the scheduler, idempotent recovery from a 503 after an order filled,
   foreign-position and hedge-mode refusal, single-instance lock.
-- **Replay** 2025-01 → 2026-06 at 1.5x: bot Sharpe 2.04 vs idealized 2.19, daily-return correlation
-  0.993. The gap is from the rebalance band, position caps and lot rounding.
+- **Replay** on the repo's CSVs, 2025-01 → 2026-06 at 1.5x: bot Sharpe 2.04 vs idealized 2.19,
+  daily-return correlation 0.993. The gap is from the rebalance band, position caps and lot
+  rounding.
+- **Full-market replay** (`research/v5_exam.py`): on Binance's complete history with real funding,
+  2025-01 → 2026-06-07, the bot pipeline scored Sharpe 2.40 against 2.46 idealized. The fresh-data
+  result is in *Running with $100*.
 
-**Not verified here:** connectivity to the real Binance API. This build environment cannot reach
-Binance, so the client was tested against the fake exchange built from Binance's documented
-formats. Run steps 1–4 of *Testnet, then live* before risking money.
+**Not verified here:** connectivity to the real Binance trading API. Binance geo-blocks it from
+this build environment (HTTP 451), so the client was tested against the fake exchange built from
+Binance's documented formats. Run steps 1–4 of *Testnet, then live* before risking money.
 
 ## Known limitations
 
 - **Small accounts:** Binance's minimum order is ~5 USDT (more for BTC/ETH). Below it, positions
-  are skipped. At $100 the bot still holds 70–90% of its target size and tracked the strategy in
-  replays (see *Running with $100*), but every skipped order is tracking error.
+  are skipped. At $100 the bot holds about 60–75% of its target size on the full market (see
+  *Running with $100*). Every skipped order is tracking error.
+- **Missing daily bars:** a coin needs 60 consecutive daily bars to be eligible, so one missing
+  bar makes it ineligible for 60 days. The live API has no such holes, but Binance's public archive
+  does (2026-10-28), and the offline research repairs it.
 - **Daily cadence:** intraday moves are only guarded by the optional exchange stops and by
   liquidation. Cross margin with a 5x exchange setting gives headroom, but a market-wide crash can
   still hit the account before the next cycle.
