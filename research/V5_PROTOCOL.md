@@ -164,3 +164,90 @@ date and reason **before** the affected result is used.
     ADA and BNB on about 100 each. The majors have quiet weekends too.
   - No tokenized TradFi perp existed before 2025.
 - **Stablecoin rule:** it flags only USDC, which is already excluded by name.
+
+---
+
+## Results before unblinding (recorded 2026-11-11, FRESH still untouched)
+
+### Data obtained
+
+- **Instruments:** 941 USDT-perp histories. 755 have bars in the design window, and 149 of those
+  stopped trading inside it. The old repo set was 156 files, 124 after exclusions.
+- **Funding:** 2.85M funding events. Real funding covers 99.7% of eligible coin-days.
+- **Positioning:** 487k symbol-days of 5-minute metrics, covering 89% of eligible coin-days since
+  2020-10.
+- **Eligible coins per day:** median 162, against about 40 in the old universe.
+
+### Part A: bias audit (`v5_audit.py`)
+
+Sharpe, IS / VAL:
+
+| Setup | v3 trend | Pump-follow | v4 blend |
+|---|---|---|---|
+| 1. Old universe, assumed funding (published) | 1.45 / 1.52 | 1.36 / 1.47 | 1.92 / 2.11 |
+| 2. Old universe, real funding | 1.38 / 1.43 | 1.49 / 1.85 | 1.94 / 2.24 |
+| 3. Full universe, assumed funding | 1.78 / 2.27 | 0.23 / −0.25 | 1.56 / 2.05 |
+| **4. Full universe, real funding** | **1.67 / 2.13** | **0.60 / 1.09** | **1.68 / 2.46** |
+
+- **Setup 1 reproduces the published numbers exactly.**
+- **The pump-follow sleeve was mostly a survivorship and selection artifact.**
+  - On the complete universe its IS Sharpe is 0.60 (not 1.36) and its max drawdown is −72%.
+  - Pump triggers: 1710, against 385 in the old data.
+  - What remains leans on funding. Pumped coins usually have *negative* funding (median +11%/yr
+    but mean −113%/yr), so longs are paid.
+- **The trend book is better on the complete universe.** It has more candidates, and the delisted
+  coins were good shorts.
+  - 30 bps/side costs: 1.32 / 1.73.
+  - Entering 1 or 2 days late: 1.54 / 2.03 and 1.41 / 2.16.
+  - 40 most liquid coins only: 1.55 / 1.38. 100 most liquid: 1.90 / 1.79.
+- **Trend book weaknesses:**
+  - Without its 20 best days it is 1.03 / 1.19.
+  - Its best day (+28%, 2025-10-10) was a liquidation cascade. Exchanges auto-deleveraged
+    profitable shorts that day, so a live account may have captured less.
+  - 52% of P&L comes from 10 coins.
+  - IS profit came from longs. VAL profit came almost entirely from shorts.
+- **v4 by year (setup 4):** 2020 2.75 · 2021 3.03 · 2022 1.22 · **2023 0.33** · 2024 1.85 ·
+  2025 2.16 · 2026 3.07.
+- **Pre-committed consequence:** v4's IS and VAL Sharpe on setup 4 are both above 1.0, so v4 is
+  not declared inflated as a whole. Its pump component is.
+
+### Part B: eight hypotheses (`v5_hypotheses.py`): **none passed**
+
+| # | Hypothesis | IS | VAL | Verdict |
+|---|---|---|---|---|
+| B1 | Retail crowding, contrarian | −0.40 | −1.12 | fail |
+| B2 | Top traders, follow | −1.01 | −2.53 | fail |
+| B3 | Smart minus retail | −0.49 | −2.31 | fail |
+| B4 | OI-confirmed move | −2.33 | −0.49 | fail |
+| B5 | Funding veto on v3 (base 1.67 / 2.13) | 1.69 | 2.11 | fail (no gain) |
+| B6 | Small-cap extension of v4 (base 1.68 / 2.46) | 1.63 | 1.62 | fail (worse) |
+| B7 | New-listing short | 0.88 | −0.01 | fail |
+| B8 | Taker-flow persistence | 0.80 | 0.65 | fail (both just under the bars) |
+
+Diagnostic for B1–B4 (cannot change a verdict): the reversed signs also lose after costs in at
+least one period. These sleeves turn over 0.5–1.0 of the book per day, and at 7 bps a side that
+costs more than the signal carries. Zero-cost Sharpes are between −1.6 and +1.0 with no consistent
+sign. Daily positioning data, used this way, has no tradable edge here.
+
+### v5 = v4 (by the rule)
+
+Nothing passed, so only C0 goes to the exam.
+
+### Harness changes made before unblinding
+
+- **`bot/replay.py`:** real funding per holding day; a daily tradable-universe callback (what the
+  exchange lists that day); settlement of positions in contracts that stop trading.
+- **Bot universe hygiene:** stablecoin guard (`min_daily_vol` 0.5%), and the exclude list extended
+  to the non-crypto names. Without it the live bot would have treated USDCUSDT as a coin.
+  Old-universe results are unchanged (parity test passes).
+- **Harness check on VAL** (design data): C0 at $100, 1.5× through the real pipeline:
+  $100 → $471, Sharpe 2.40, max DD −19.4%, 76% of target size held, 2 delisting settlements.
+  Idealized 1×: Sharpe 2.46.
+
+### What the exam will run (frozen)
+
+- **C0 at $100, 1.5×** (the verdict).
+- **Declared diagnostics:** C0 at 1.0×; C0 at $1,000; BTC and equal-weight benchmarks; the
+  idealized trend and pump parts.
+- Funding events for the current month are not yet in the archive. Days without funding data
+  assume zero.

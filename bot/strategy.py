@@ -26,11 +26,14 @@ BARS_PER_YEAR = 365.0
 
 
 # ----------------------------------------------------------------------------- building blocks
-def eligibility(close, volume, min_history, min_dollar_volume, liq_lookback=30):
+def eligibility(close, volume, min_history, min_dollar_volume, liq_lookback=30, min_daily_vol=0.0):
     has = close.notna()
     hist_ok = has.rolling(min_history, min_periods=min_history).sum() >= min_history
     liq = (close * volume).rolling(liq_lookback, min_periods=max(5, liq_lookback // 2)).median()
-    return has & hist_ok & (liq >= min_dollar_volume)
+    ok = has & hist_ok & (liq >= min_dollar_volume)
+    if min_daily_vol > 0:          # a stablecoin pair would otherwise swamp the inverse-vol sizing
+        ok &= close.pct_change(fill_method=None).rolling(30, min_periods=15).std() >= min_daily_vol
+    return ok
 
 
 def _inv_vol(ret, lookback):
@@ -135,7 +138,7 @@ def compute_weight_history(close: pd.DataFrame, volume: pd.DataFrame, cfg: Strat
     if cfg.hedge_symbol not in close.columns:
         raise ValueError(f"hedge symbol {cfg.hedge_symbol} missing from data")
     ret = close.pct_change(fill_method=None)
-    elig = eligibility(close, volume, cfg.min_history, cfg.min_dollar_volume)
+    elig = eligibility(close, volume, cfg.min_history, cfg.min_dollar_volume, min_daily_vol=cfg.min_daily_vol)
     wt = vol_target(trend_weights(close, elig, cfg.k_select, cfg.k_hold), ret, cfg.target_vol,
                     cfg.max_sleeve_leverage)
     pw, pf = pump_weights(close, elig, cfg.hedge_symbol, cfg.pump_threshold, cfg.pump_hold_days,

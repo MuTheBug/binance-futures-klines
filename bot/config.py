@@ -8,11 +8,31 @@ import os
 import tomllib
 from dataclasses import dataclass, field, fields, is_dataclass
 
-# Tokenized stocks / metals / FX perps: excluded so the edge stays pure crypto (matches research).
+# Not crypto, by base name: tokenized stocks / ETFs / commodities / FX / pre-IPO products, index
+# products and stablecoin pairs. Second line of defence: live, the bot first keeps only symbols
+# the exchange flags underlyingType == "COIN". Written from symbol names (research/vision_panel.py).
 DEFAULT_EXCLUDE = [
-    "NVDA", "TSLA", "MSTR", "SPY", "QQQ", "INTC", "MU", "MRVL", "AMD", "SNDK", "SKHYNIX", "NOK",
-    "EWY", "SOXL", "CRCL", "SPCX", "XAG", "XAU", "XAUT", "PAXG", "CL", "BZ", "SLX", "BILL", "COIN",
-    "GENIUS", "CHIP",
+    "BTCDOM", "DEFI", "BLUEBIRD", "FOOTBALL", "DOTECO", "USDC", "AAOI", "AAPL", "ABBV", "ACN",
+    "ADBE", "AGPU", "AKAM", "ALAB", "AMAT", "AMC", "AMD", "AMGN", "AMZN", "ANET", "ANTHROPIC",
+    "APLD", "APP", "ARM", "ASML", "ASTS", "AVGO", "AXTI", "BABA", "BAC", "BE", "BILL", "BITO",
+    "BMNR", "BRKB", "BWET", "BX", "BYD", "BZ", "CAT", "CBRS", "CEG", "CHIP", "CIEN", "CL", "COHR",
+    "COIN", "COPPER", "COST", "CRCL", "CRDO", "CRM", "CRML", "CRWD", "CRWV", "CSCO",
+    "CSOPSAMSUNG2L", "CSOPSKHYNIX2L", "CVNA", "CXMT", "CYPH", "DDOG", "DELL", "DIS", "DJT", "DKNG",
+    "EBAY", "EIDO", "EQT", "EWJ", "EWT", "EWY", "EWZ", "EWZS", "FLEX", "FLNC", "FWDI", "GDX",
+    "GENIUS", "GEV", "GIGADEV", "GLW", "GME", "GOOGL", "GPRO", "GS", "GTLB", "HANMI", "HD", "HIMS",
+    "HK0625", "HK0700", "HK0992", "HK1810", "HOOD", "HPE", "HUT", "HYUNDAI", "IBKR", "IBM", "INTC",
+    "INTW", "IONQ", "IREN", "IWM", "JPM", "KLAC", "KO", "KODEX200", "KORU", "KSTR", "KUAISHOU",
+    "LGELECTRONICS", "LITE", "LLY", "LRCX", "MARA", "MCD", "MDB", "MEITUAN", "MELI", "META",
+    "MINIMAX", "MOONSHOT", "MP", "MRK", "MRNA", "MRVL", "MSFT", "MSTR", "MSTU", "MU", "MUU", "MVLL",
+    "NATGAS", "NAVER", "NBIS", "NET", "NFLX", "NKE", "NOK", "NOW", "NVDA", "NVDL", "NVO", "OKLO",
+    "ONDS", "OPENAI", "ORCL", "OURA", "OXY", "PANW", "PATH", "PAXG", "PAYP", "PDD", "PFE", "PLTR",
+    "POPMART", "PYPL", "QCOM", "QNTX", "QQQ", "RDDT", "RDW", "RIVN", "RKLB", "RUM", "SAMSUNG",
+    "SAMSUNGEM", "SHOP", "SKHY", "SKHYNIX", "SLX", "SMCI", "SMH", "SMR", "SNDK", "SNOW", "SNPS",
+    "SNXX", "SOFI", "SONY", "SOXL", "SOXS", "SPCX", "SPY", "SQQQ", "STM", "STRC", "STXX", "TBT",
+    "TEAM", "TEM", "TENCENT", "TER", "TMF", "TQQQ", "TSLA", "TSLL", "TSM", "TTWO", "TWST", "TXN",
+    "TZA", "UBER", "UNH", "UNITREE", "URNM", "USAR", "USDBRL", "UVXY", "V", "VKTX", "VRT", "VST",
+    "WDC", "WMT", "XAG", "XAU", "XAUT", "XBI", "XLE", "XOM", "XPD", "XPT", "ZCSH", "ZHIPU",
+    "ZHONGJI", "ZM", "ZS",
 ]
 
 MAX_ALLOWED_LEVERAGE = 5.0   # research: growth turns negative and ruin appears beyond ~6x
@@ -28,6 +48,7 @@ class StrategyCfg:
     pump_hold_days: int = 5
     min_history: int = 60             # days of history before a coin is eligible
     min_dollar_volume: float = 5e6    # trailing-30d median daily $ volume
+    min_daily_vol: float = 0.005      # drop stablecoin-like symbols (30d daily volatility below 0.5%)
     history_bars: int = 400           # daily bars fetched per symbol (>= 250 recommended)
     hedge_symbol: str = "BTCUSDT"
     k_select: int = 6                 # v3: strongest trends picked before smoothing

@@ -123,6 +123,16 @@ class CsvData:
         grid = pd.date_range(full["close"].index[0], full["close"].index[-1], freq="D")
         self.all = Bars(**{k: v.reindex(grid) for k, v in full.items()})
 
+    @classmethod
+    def from_frames(cls, open, high, low, close, volume, exclude=()):
+        """Build the offline source from aligned daily frames (index = UTC days, columns = symbols
+        such as BTCUSDT). Used by the full-universe replays in research/."""
+        self = cls.__new__(cls)
+        self.exclude = set(exclude)
+        keep = [c for c in close.columns if (c[:-4] if c.endswith("USDT") else c) not in self.exclude]
+        self.all = Bars(*(f[keep].astype("float64") for f in (open, high, low, close, volume)))
+        return self
+
     # Offline minimum order sizes. Most USDT-M perps are 5 USDT; BTC/ETH have been higher (the live
     # bot always uses the exchange's own filters). Conservative so small-account replays are honest.
     MIN_NOTIONAL = {"BTCUSDT": 100.0, "ETHUSDT": 20.0}
